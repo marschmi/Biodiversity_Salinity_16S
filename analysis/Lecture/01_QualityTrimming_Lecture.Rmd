@@ -22,22 +22,20 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE,
                       fig.align = "center",
-                      fig.path = "../figures/01_QualityTrimming_Lecture/") # send any figure output to this folder 
+                      fig.path = "../../figures/Lecture/01_QualityTrimming_Lecture/") # send any figure output to this folder 
 ```
 
 # Goals of this file 
 
 **NOTE:** This document was **NOT** run during class. Instead, it is building off of what we covered in class to help move the learning along for lab next week. We will start at the error modeling step in lab next week.
 
-0. Use raw fastq files to search for primers in the sequences.
-1. Use raw fastq files and generate quality plots to assess quality of reads.
-2. Filter and trim out bad sequences and bases from our sequencing files. 
-3. Write out fastq files with high quality sequences. 
-4. Evaluate the quality from our filter and trim. 
-5. Infer Errors on forward and reverse reads individually.
-6. Identified ASVs on forward and reverse reads separately, using the error model.  
-7. Merge forward and reverse ASVs into "contiguous ASVs".  
-8. Generate the ASV count table. (`otu_table` input for phyloseq.). 
+0. Load packages and prepare for fastq files. 
+1. Use raw fastq files and generate quality plots to assess quality of raw reads.
+2. Evaluate whether primers are present in the sequences.
+3. Filter and trim out primers, bad sequences and bases from the sequencing files. 
+4. Assess if filtering and trimming was adequate. If not, re-run with new parameters.
+4. Write out fastq files with high quality sequences. 
+5. Evaluate the quality from the filter and trim step and whether it is adequate. 
 
 
 Output that we will create in this file: 
@@ -78,12 +76,12 @@ start_time
 # Load Libraries 
 ```{r load-libraries}
 # Efficient package loading with pacman 
-pacman::p_load(tidyverse, dada2, phyloseq, patchwork, 
+pacman::p_load(tidyverse, dada2, patchwork, 
                DT, devtools, Biostrings, ShortRead,
                install = FALSE)
 ```
 
-# Reading Raw Sequencing Files 
+# 0. Prepare Raw fastq Files 
 ```{r load-data}
 # Set the raw fastq path to the raw sequencing files 
 # Path to the fastq files 
@@ -113,112 +111,7 @@ head(reverse_reads)
 stopifnot(length(reverse_reads) == length(forward_reads))
 ```
 
-# Primer Search 
-
-Before we go ahead and filter and trim our reads, let's confirm that we do not have primer sequeces in our reads. Here, we used the [Kozich et al., 2013](https://doi.org/10.1128/AEM.01043-13) library prep so that we would not sequence our primers. However, it's always good to check! Let's confirm that our sequences do not have primers. 
-
-```{r search-primers}
-# Search the sequences for primers to check if they are present
-# Pull out the raw_fastq sequences from all of the raw sequencing files 
-raw_fastqs <- readFastq(dirPath = raw_fastqs_path)
-# The above code makes a complex S3 object.Let's only grab the DNA sequences 
-all_seqs <- sread(raw_fastqs)
-
-# the 16S EMP primers
-f_primer <- c("GTGYCAGCMGCCGCGGTAA")
-r_primer <- c("GGACTACNVGGGTWTCTAAT")
-
-# Search the dataset 
-# Check the complement of the primers.... 
-Fprimer_complement <- complement(DNAString(f_primer))
-Fprimer_revComplement <- reverseComplement(DNAString(f_primer))
-
-Rprimer_complement <- complement(DNAString(r_primer))
-Rprimer_revComplement <- reverseComplement(DNAString(r_primer))
-
-# Test an example on one sequence randomly selected from a forward read fastq file
-test_DNAseq <- DNAString("TACGTAGGGGGCGAGCGTTGTCCGGATTTATTGGGCGTAAAGAGCTCGTAGGCGGTTCAACAAGTCGGTCGTGAAAGTTCAGGGCTCAACCCTGTAATGTCGATCGATACTGTTGTTACTAGGTTACGGTTGAGGTGATTGGATTTCCGTGTTTAGCGGTGAAATGCGTAGATATGCGGAGGAACCCCGATGGCGATGGCAGTCCCCTGGGCCTGTACTGACGCTCATGCACGAAAGCGTGGGGAGCAAAC")
-
-# NOTE: fixed MUST = FALSE because the primers have degeneracy 
-
-# Test code now 
-matchPattern(pattern = "ANAGA", # Part of the test seq with degeneracy
-             subject = test_DNAseq, 
-             fixed = FALSE)
-
-############ POSITIVE CONTROLS OF CODE ############ 
-# Let's use a sequence that is very conserved and def present
-# Postive control intuition check 
-pos_control <-
-  vcountPattern(pattern = "CGGAATTACTGGGCG", 
-                subject = all_seqs, 
-                fixed = FALSE)
-# Make a note :) 
-paste("Positive control is found in", round(sum(pos_control)/length(all_seqs) * 100, digits = 2),
-      "% of sequences") 
-
-# When there is a match, vmatchPattern can be used to locate the indices of the matches 
-test_pos_control <- 
-  vmatchPattern(pattern = "CGGAATTACTGGGCG", 
-                subject = all_seqs, 
-                fixed = FALSE)
-head(test_pos_control)
-
-# And double check the degenerate nucleotides are ok within these functions, too 
-pos_degen_control <-
-  vcountPattern(pattern = "GTGYC", 
-                subject = all_seqs, 
-                fixed = FALSE)
-
-# Make a note :) 
-paste("Positive control with a degenerate base is found in", round(sum(pos_degen_control)/length(all_seqs) * 100, digits = 2),
-      "% of sequences") 
-
-stopifnot(sum(pos_degen_control) > round(sum(pos_control)))
-
-############ FORWARD PRIMERS ############ 
-# Now, let's search the sequences for the primers
-# Search first for forward primer 
-Fprimer_vmatch <- 
-  vcountPattern(pattern = f_primer, 
-                subject = all_seqs, 
-                fixed = FALSE); 
-# Note: 
-paste("The forward primer is found in", round(sum(Fprimer_vmatch)/length(all_seqs) * 100, digits = 2),
-      "% of sequences") 
-
-
-# Then double check with complement of forward primer 
-Fprimer_complement_vmatch <- 
-  vcountPattern(pattern = Fprimer_complement, 
-                subject = all_seqs, 
-                fixed = FALSE); 
-# Note: 
-paste("The complement of the forward primer is found in", round(sum(Fprimer_complement_vmatch)/length(all_seqs) * 100, digits = 2),
-      "% of sequences") 
-
-############ REVERSE PRIMERS ############ 
-# Now, let's search for the reverse primer 
-Rprimer_vmatch <- 
-  vcountPattern(pattern = r_primer, 
-                subject = all_seqs, 
-                fixed = FALSE); 
-paste("The reverse primer is found in", round(sum(Rprimer_vmatch)/length(all_seqs) * 100, digits = 2),
-      "% of sequences") 
-
-# Then double check with complement of forward primer 
-Rprimer_complement_vmatch <- 
-  vcountPattern(pattern = Rprimer_complement, 
-                subject = all_seqs, 
-                fixed = FALSE); 
-paste("The complement of reverse primer is found in", round(sum(Rprimer_complement_vmatch)/length(all_seqs) * 100, digits = 2),
-      "% of sequences") 
-```
-
-Great! We have confirmed that our primer sequences are indeed *NOT* in our sequences. :) Therefore, we do not need to trim them out in the `filterAndTrim()` step below. 
-
-
-# Assess Raw Read Quality 
+# 1. Assess Raw Read Quality 
 
 ## Evaluate raw sequence quality 
 
@@ -326,7 +219,136 @@ General notes on Illumina sequencing
   - Phasing errors are enhanced, more accumulated errors.
   - Optical strength is weaker compared to the first sequencing, leading to more miscalls. 
 
-####  Prepare a placeholder for filtered reads 
+# 2. Evaluate Primer Search 
+
+
+> Does your dataset include primers? 
+
+Before we go ahead and filter and trim our reads, we need to confirm whether or not the raw seuqences include the primer sequences in them. Their presence depends on the type of libray prepration protocol that was used. Here, in this in class dataset, we used the [Kozich et al., 2013](https://doi.org/10.1128/AEM.01043-13) library prep. This library preparation does not include the primers in the sequences. 
+
+However, if the standard Illumina 2-step PCR library prep was used, **then primers will be included in the sequences and they will need to be trimmed out of the sequences later.**
+
+Please be sure to use the primer sequences that were used for your project's dataset, which should be located in the method's section! If you need help finding these, please be welcome to come to office hours and/or email Mar for help. 
+
+Now, let's check for those primers! 
+
+```{r search-primers-test}
+# Search the sequences for primers to check if they are present
+# Pull out the raw_fastq sequences from all of the raw sequencing files 
+raw_fastqs <- readFastq(dirPath = raw_fastqs_path)
+# The above code makes a complex S3 object.Let's only grab the DNA sequences 
+all_seqs <- sread(raw_fastqs)
+
+# The primer sequences that were used for the in class dataset. 
+# NOTE: YOU WILL NEED TO MODIFY THE CODE TO MATCH THE PRIMERS USED IN YOUR DATASET! 
+f_primer <- c("GTGYCAGCMGCCGCGGTAA")
+r_primer <- c("GGACTACNVGGGTWTCTAAT")
+
+# Search the dataset 
+# Check the complement of the primers.... 
+Fprimer_complement <- complement(DNAString(f_primer))
+Fprimer_revComplement <- reverseComplement(DNAString(f_primer))
+
+Rprimer_complement <- complement(DNAString(r_primer))
+Rprimer_revComplement <- reverseComplement(DNAString(r_primer))
+
+# Test an example on one sequence randomly selected from a forward read fastq file
+test_DNAseq <- DNAString("TACGTAGGGGGCGAGCGTTGTCCGGATTTATTGGGCGTAAAGAGCTCGTAGGCGGTTCAACAAGTCGGTCGTGAAAGTTCAGGGCTCAACCCTGTAATGTCGATCGATACTGTTGTTACTAGGTTACGGTTGAGGTGATTGGATTTCCGTGTTTAGCGGTGAAATGCGTAGATATGCGGAGGAACCCCGATGGCGATGGCAGTCCCCTGGGCCTGTACTGACGCTCATGCACGAAAGCGTGGGGAGCAAAC")
+
+# Test code now 
+matchPattern(pattern = "ANAGA", # Part of the test seq with degeneracy
+             subject = test_DNAseq, 
+             # NOTE: fixed MUST = FALSE because the primers have degeneracy 
+             fixed = FALSE)
+
+############ POSITIVE CONTROLS OF CODE TO MAKE SURE IT WORKS ############ 
+# Let's use a sequence that is very conserved and def present
+# Postive control intuition check 
+pos_control <-
+  vcountPattern(pattern = "CGGAATTACTGGGCG", # This is a pattern that I know is in the sequences
+                subject = all_seqs, 
+                fixed = FALSE)
+
+# Make a note :) 
+paste("Positive control is found in", round(sum(pos_control)/length(all_seqs) * 100, digits = 2),
+      "% of sequences") 
+
+# When there is a match, vmatchPattern can be used to locate the indices of the matches 
+test_pos_control <- 
+  vmatchPattern(pattern = "CGGAATTACTGGGCG", 
+                subject = all_seqs, 
+                fixed = FALSE)
+
+# Take a look 
+head(test_pos_control)
+
+# And double check the degenerate nucleotides are ok within these functions, too 
+pos_degen_control <-
+  vcountPattern(pattern = "GTGYC", 
+                subject = all_seqs, 
+                fixed = FALSE)
+
+# Make a note :) 
+paste("Positive control with a degenerate base is found in", round(sum(pos_degen_control)/length(all_seqs) * 100, digits = 2),
+      "% of sequences") 
+
+stopifnot(sum(pos_degen_control) > round(sum(pos_control)))
+```
+
+
+
+Now, let's specifically test for the **forward** primers: 
+
+```{r forward-primers}
+############ FORWARD PRIMERS ############ 
+# Now, let's search the sequences for the primers
+# Search first for forward primer 
+Fprimer_vmatch <- 
+  vcountPattern(pattern = f_primer, 
+                subject = all_seqs, 
+                fixed = FALSE); 
+# Note: 
+paste("The forward primer is found in", round(sum(Fprimer_vmatch)/length(all_seqs) * 100, digits = 2),
+      "% of sequences") 
+
+
+# Then double check with complement of forward primer 
+Fprimer_complement_vmatch <- 
+  vcountPattern(pattern = Fprimer_complement, 
+                subject = all_seqs, 
+                fixed = FALSE); 
+# Note: 
+paste("The complement of the forward primer is found in", round(sum(Fprimer_complement_vmatch)/length(all_seqs) * 100, digits = 2),
+      "% of sequences") 
+```
+
+Great, now let's specifically test for the **reverse** primers: 
+
+```{r reverse-primers}
+############ REVERSE PRIMERS ############ 
+# Now, let's search for the reverse primer 
+Rprimer_vmatch <- 
+  vcountPattern(pattern = r_primer, 
+                subject = all_seqs, 
+                fixed = FALSE); 
+paste("The reverse primer is found in", round(sum(Rprimer_vmatch)/length(all_seqs) * 100, digits = 2),
+      "% of sequences") 
+
+# Then double check with complement of forward primer 
+Rprimer_complement_vmatch <- 
+  vcountPattern(pattern = Rprimer_complement, 
+                subject = all_seqs, 
+                fixed = FALSE); 
+paste("The complement of reverse primer is found in", round(sum(Rprimer_complement_vmatch)/length(all_seqs) * 100, digits = 2),
+      "% of sequences") 
+```
+
+Great! We have confirmed that our primer sequences are indeed *NOT* in our sequences. :) Therefore, we do not need to trim them out in the `filterAndTrim()` step below. 
+
+
+# 3. Filter and Trim 
+
+##  A. Prepare a placeholder for filtered reads 
 
 ```{r prep-filtered-sequences}
 # Create vector of sample names from the filenames 
@@ -356,13 +378,13 @@ filtered_reverse_reads <-
 head(filtered_reverse_reads)
 ```
 
-# Filter and Trim Reads
+## B. Actually Filter and Trim Reads
 
 Parameters of filter and trim **DEPEND ON THE DATASET AND SEQUENCING RUN**. If your sequences are run on multiple sequencing runs, you will need to run these separately!!! I recommended making parallel processes (either in separate files or back-to-back in a single file for each sequencing run). 
 
 Some things to keep in mind are:
 
-- The library preparation: *Are the primers included in the sequence? If so, they need to be trimmed out in this step*.  
+- The library preparation: *Are the primers included in the sequence? If so, they need to be trimmed out in this step*. (Please follow the code above to assess for the primers and use the output from that here!)  
 - What do the above quality profiles of the reads look like? *If they are lower quality, it is highly recommended to use `maxEE = c(1,1)`.*  
 - Do the reads dip suddenly in their quality? If so, explore `trimLeft` and `truncLen`
 - Check out more of the parameters using `?filterAndTrim` to bring up the help page and do some googling about it. 
@@ -389,6 +411,7 @@ filtered_reads <-
               rev = reverse_reads, filt.rev = filtered_reverse_reads,
               maxN = 0, maxEE = c(2,2), 
               # Remove the first 8 bp in forward and 3bps in reverse reads
+              # Note, this will be the place where primers will be removed! (see example below)
               trimLeft = c(8,3),
               # Keep the full forward & trim final 2 bases in the reverse with truncLen
               truncLen = c(250, 248), 
@@ -414,7 +437,7 @@ filtered_reads <-
 #              # multithread = 10)
 ```
 
-# Assess Trimmed Read Quality 
+## C. Plot Filtered & Trimmed Read Quality of Subset of Samples
 
 ```{r filterTrim-quality-plots,  fig.width=12, fig.height=8}
 # Plot the 12 random samples after QC
@@ -430,7 +453,7 @@ reverse_filteredQual_plot_12 <-
 forward_filteredQual_plot_12 + reverse_filteredQual_plot_12
 ```
 
-## Aggregated Trimmed Plots 
+## D. Plot Aggregated Filtered & Trimmed Plots of All Samples
 ```{r qc-aggregate-plot, fig.width=5.5, fig.height=3.5}
 # Aggregate all QC plots 
 # Forward reads
@@ -451,9 +474,12 @@ postQC_aggregate_plot <-
 postQC_aggregate_plot
 ```
 
+
+# 4. Assess if filtering and trimming was adequate. If not, re-run with new parameters. 
+
 <span style="color: red;">INTERPRETATION #2 of Post-QC: Here, in this location of your analyses, please insert a description of the interpretation you draw regarding your post filterAndTrim plots. Please note anything important about the figure you've created about your data generally speaking to your post-QC reads. What's the general trend? In the next question, we will plot the pre- and post-QC togeter and compare them. The goal here is to evaluate the QC process. An example is provided below.</span> 
 
-This post-QC quality score plot from 96 aggregated Illumina sequencing files shows the forward (left) and reverse (right) reads after quality filtering and trimming.
+The above post-QC quality score plot from 96 aggregated Illumina sequencing files shows the forward (left) and reverse (right) reads after quality filtering and trimming.
 
 - *Forward Reads Post-QC*
   - High-quality (Q30+) bases throughout most of the read length.
@@ -467,7 +493,7 @@ This post-QC quality score plot from 96 aggregated Illumina sequencing files sho
 
 To further confirm that things look ok, let's take a look at the read retention of our QC step.
 
-## Read Retention Post-QC
+### A. Read Retention Post-QC
 
 ```{r filterTrim-stats, message = FALSE, fig.height = 2.5, fig.width=8}
 # Make output into dataframe 
@@ -574,7 +600,7 @@ Overall, ~90% of read retention is great!
 - Reverse read degradation still affects error modeling (trim further if needed).
 
 
-### Visualize QC differences in plot 
+## B. Visualize QC differences Pre- and Post-Filering & Trimming 
 ```{r pre-post-QC-plot, fig.width=6, fig.height=5.5}
 # Plot the pre and post together in one plot
 preQC_aggregate_plot / postQC_aggregate_plot
@@ -592,7 +618,6 @@ preQC_aggregate_plot / postQC_aggregate_plot
   - *Beginning of read*: While none of the bases were trimmed at the beginning of the read first 8 bases were trimmed, which makes sense due to lower initial quality. While there is some lower quality bases left at the beginning, their Phred scores are still very good ~35.
   - *Middle of read*: Mid-read quality (~10-180 bp) remains strong.
   - *End of read*:" The trailing end of the reverse reads still shows some degradation, but it’s significantly improved from pre-QCThe lowest-quality bases have been trimmed, but reverse reads still have some expected drop-off after ~200 cycles (this is typical for Illumina sequencing).
-
 
 
 # Done with Analyses for now! :) 

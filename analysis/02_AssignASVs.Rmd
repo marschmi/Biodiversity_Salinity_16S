@@ -1,0 +1,64 @@
+---
+title: "Assign ASVs with DADA2"
+author: "Mar Schmidt"
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup-Rmd, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      fig.align = "center",
+                      # Make sure to create the folder
+                      fig.path = "../figures/02_AssignASVs")
+```
+
+
+# Prepare Environment 
+```{r setup}
+set.seed(238428)
+
+# set the number of threads 
+n_threads = 8
+
+# Load packages 
+pacman::p_load(tidyverse, dada2, patchwork, 
+               install = FALSE)
+```
+
+# Load in QC'd FastQ files 
+
+```{r load-fastqs}
+filtered_fastqs_path <- "data/01_QualityTrimming/filtered_fastqs"
+filtered_fastqs_path
+
+# Forward read vector 
+filtered_forward_reads <- 
+  list.files(filtered_fastqs_path, pattern = "R1_filtered.fastq.gz", 
+           full.names = TRUE)
+
+# Reverse read vector 
+filtered_reverse_reads <- 
+  list.files(filtered_fastqs_path, pattern = "R2_filtered.fastq.gz",
+             full.names = TRUE)
+
+# Create vector of sample names 
+sample_names <- sapply(strsplit(basename(filtered_forward_reads), "_"), `[`, 1) 
+```
+
+# Error Model 
+
+## Learn errors 
+
+```{r learn-errors}
+# Forward 
+error_forward_reads <- 
+  learnErrors(filtered_forward_reads, multithread = n_threads)
+
+# Reverse
+error_reverse_reads <- 
+  learnErrors(filtered_reverse_reads, multithread = n_threads)
+```
+
+
