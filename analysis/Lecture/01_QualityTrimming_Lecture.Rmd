@@ -343,8 +343,9 @@ paste("The complement of reverse primer is found in", round(sum(Rprimer_compleme
       "% of sequences") 
 ```
 
-Great! We have confirmed that our primer sequences are indeed *NOT* in our sequences. :) Therefore, we do not need to trim them out in the `filterAndTrim()` step below. 
+Great! We have confirmed that our primer sequences are indeed *NOT* in the sequences. :) Therefore, we do not need to trim them out in the `filterAndTrim()` step below. 
 
+<span style="color: red;">INTERPRETATION #2 — Primer Evaluation: Based on the primer search results above, determine whether primer sequences are present in your dataset. Explain your conclusion and describe how the presence or absence of primers will influence the parameters used in the filterAndTrim() step.</span> 
 
 # 3. Filter and Trim 
 
@@ -437,6 +438,8 @@ filtered_reads <-
 #              # multithread = 10)
 ```
 
+<span style="color: red;">RATIONALE: Explain the reasoning behind the parameters you selected for the filterAndTrim() step. In your answer, reference relevant patterns from your FastQC or MultiQC reports (e.g., quality score drop-off, adapter/primer signal, read length distribution) that informed your trimming and filtering decisions. You may also cite guidance from the DADA2 workflow. Why were these parameter values appropriate for your dataset?</span> 
+
 ## C. Plot Filtered & Trimmed Read Quality of Subset of Samples
 
 ```{r filterTrim-quality-plots,  fig.width=12, fig.height=8}
@@ -474,10 +477,16 @@ postQC_aggregate_plot <-
 postQC_aggregate_plot
 ```
 
+## E. Save Filtered Reads Data 
+
+```{r save-filtered-reads-data}
+# SAVE DATA FIRST 
+save(filtered_reads, file = "data/01_QualityTrimming/filtered_reads.RData")
+```
 
 # 4. Assess if filtering and trimming was adequate. If not, re-run with new parameters. 
 
-<span style="color: red;">INTERPRETATION #2 of Post-QC: Here, in this location of your analyses, please insert a description of the interpretation you draw regarding your post filterAndTrim plots. Please note anything important about the figure you've created about your data generally speaking to your post-QC reads. What's the general trend? In the next question, we will plot the pre- and post-QC togeter and compare them. The goal here is to evaluate the QC process. An example is provided below.</span> 
+<span style="color: red;">INTERPRETATION #3 of Post-QC: Here, in this location of your analyses, please insert a description of the interpretation you draw regarding your post filterAndTrim plots. Please note anything important about the figure you've created about your data generally speaking to your post-QC reads. What's the general trend? In the next question, we will plot the pre- and post-QC togeter and compare them. The goal here is to evaluate the QC process. An example is provided below.</span> 
 
 The above post-QC quality score plot from 96 aggregated Illumina sequencing files shows the forward (left) and reverse (right) reads after quality filtering and trimming.
 
@@ -550,7 +559,7 @@ numSeqs_QC_dotplot + numRetained_QC_histplot + percSeqs_QC_histplot +
 ```
 
 
-<span style="color: red;">INTERPRETATION #3 of Post-QC Statistics: Here, in this location of your analyses, please insert a description of the interpretation you draw regarding your read retainment pre- and post-QC. Please note anything important about the three paneled figure you created above. Think about how many reads got through? Is it "enough"? Should I play with the parameters in `filterAndTrim()` more?  If so, which parameters? An example interpretation is provided below. </span> 
+<span style="color: red;">INTERPRETATION #4 of Post-QC Statistics: Here, in this location of your analyses, please insert a description of the interpretation you draw regarding your read retainment pre- and post-QC. Please note anything important about the three paneled figure you created above. Think about how many reads got through? Is it "enough"? Should I play with the parameters in `filterAndTrim()` more?  If so, which parameters? An example interpretation is provided below. </span> 
 
 This figure presents three panels showing how many sequences were retained after quality filtering and trimming in the DADA2 pipeline. Let’s break down each panel:
 
@@ -606,7 +615,7 @@ Overall, ~90% of read retention is great!
 preQC_aggregate_plot / postQC_aggregate_plot
 ```
 
-<span style="color: red;">INTERPRETATION #4 is comparing your pre-QC to your post-QC read quality. Here, in this location of your analyses, please insert a description of the interpretation you draw from yor overall quality control results. Are you satisfied with your QC process? An example interpretation is provided below. </span> 
+<span style="color: red;">INTERPRETATION #5 is comparing your pre-QC to your post-QC read quality. Here, in this location of your analyses, please insert a description of the interpretation you draw from yor overall quality control results. Are you satisfied with your QC process? An example interpretation is provided below. </span> 
 
 **Quality Score Improvements**
 
