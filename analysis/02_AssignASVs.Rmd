@@ -137,8 +137,53 @@ rownames(raw_ASV_table)
 colnames(raw_ASV_table)
 typeof(raw_ASV_table)
 class(raw_ASV_table)
+
+# Write out the raw asv table 
+## Make the data/02_AssignASVs/
+write.table(raw_ASV_table, 
+            file = "data/02_AssignASVs/raw_ASV_counts.tsv",
+            sep = "\t", quote = FALSE, col.names = NA)
+```
+
+# Quality of ASVs
+
+## ASV Length Stats 
+```{r ASV-quality}
+# Longest ASV? 
+max(nchar(getSequences(raw_ASV_table)))
+
+# Create a table of the distribution lengths
+table(nchar(getSequences(raw_ASV_table)))
+```
+
+## Plot the ASV length
+
+```{r plot-asv-length}
+data.frame(Seq_Length = nchar(getSequences(raw_ASV_table))) %>%
+  ggplot(aes(x = Seq_Length)) + 
+  geom_histogram()
 ```
 
 
+# Trim ASV Length 
+
+```{r trim-asvs}
+# Subset only ASVs that are 245 bp
+raw_ASV_table_trimmed <- 
+  raw_ASV_table[,nchar(colnames(raw_ASV_table)) == 245]
+
+# Check dims
+ncol(raw_ASV_table) - ncol(raw_ASV_table_trimmed)
+```
 
 
+# Remove Chimeras 
+
+```{r rm-chimeras}
+noChimeras_ASV_table <- 
+  removeBimeraDenovo(raw_ASV_table_trimmed, 
+                     method = "consensus", 
+                     multithread = n_threads, 
+                     verbose = TRUE)
+
+```
