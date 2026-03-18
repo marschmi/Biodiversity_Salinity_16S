@@ -127,5 +127,4 @@ filtered_reads <-
                 trimLeft = c(8, 3), truncLen = c(250, 248), 
                 rm.phix = TRUE, compress = TRUE,
                 multithread = 10)
-
 ```

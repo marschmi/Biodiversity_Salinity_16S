@@ -77,7 +77,7 @@ start_time <- Sys.time()
 ## Load Packages 
 ```{r load-packages}
 # Efficient package loading with pacman 
-pacman::p_load(tidyverse, devtools, dada2, 
+pacman::p_load(tidyverse, devtools, dada2, phyloseq, 
                patchwork, DT, install = FALSE)
 ```
 
@@ -799,7 +799,7 @@ write.table(ASV_tax_table,
 ```
 
 
-## 4. Sample Data 
+## 4. DADA2 Sample Data 
 
 Let's save the `track_counts_df`, which can be useful for downstream analyses. 
 
@@ -807,6 +807,47 @@ Let's save the `track_counts_df`, which can be useful for downstream analyses.
 # And save the track_counts_df a R object, which we will merge with metadata information in the next step of the analysis in nalysis/02_Taxonomic_Assignment. 
 save(track_counts_df, file = "data/Lecture/02_AssignASVs_Lecture/track_read_counts.RData")
 ```
+
+
+## 5. Metadata
+
+Before running the code below, be sure to copy over the file `/workdir/in_class_data/metadata_physeq.RData` to `Biodiversity_Salinity_16S/data`.
+
+```{r make-metadata}
+# After copying the file over, read it into R
+load("data/metadata_physeq.RData")
+
+# The command above will load in a new object called: 
+metadata_physeq
+
+# Check it out
+sample_names(metadata_physeq)
+# how many samples? 
+length(sample_names(metadata_physeq))
+```
+
+
+# Phyloseq 
+
+To start this section of this lesson, please make sure that you have phyloseq installed! 
+
+
+```{r make-phyloseq}
+# Construct the phyloseq object 
+raw_physeq <- phyloseq(otu_table(final_ASV_table, taxa_are_rows = TRUE),
+                       # The taxonomy table needs to first be converted into a matrix
+                       tax_table(as.matrix(ASV_tax_table)), 
+                       # Next, add the sample_data
+                       metadata_physeq)
+
+# Check the phyloseq object!
+raw_physeq
+
+# Now, save the phyloseq object, but use the correct path to your folder:
+save(raw_physeq, file = "data/Lecture/02_AssignASVs_Lecture/raw_physeq.RData")
+```
+
+Now that we have saved our data files, we are good to go! 
 
 # Final info for Reproducibility 
 
