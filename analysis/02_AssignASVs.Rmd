@@ -38,13 +38,25 @@ filtered_forward_reads <-
   list.files(filtered_fastqs_path, pattern = "R1_filtered.fastq.gz", 
            full.names = TRUE)
 
+# View the files
+head(filtered_forward_reads)
+length(filtered_forward_reads)
+
 # Reverse read vector 
 filtered_reverse_reads <- 
   list.files(filtered_fastqs_path, pattern = "R2_filtered.fastq.gz",
              full.names = TRUE)
 
+# How many reverse QC'd files? 
+length(filtered_reverse_reads)
+
+# Test 
+stopifnot(length(filtered_forward_reads) == length(filtered_reverse_reads))
+
 # Create vector of sample names 
 sample_names <- sapply(strsplit(basename(filtered_forward_reads), "_"), `[`, 1) 
+# Check the names 
+sample_names
 ```
 
 # Error Model 
@@ -59,6 +71,74 @@ error_forward_reads <-
 # Reverse
 error_reverse_reads <- 
   learnErrors(filtered_reverse_reads, multithread = n_threads)
+
+# Plot the errors 
+## Forward 
+forward_error_plot <- 
+  plotErrors(error_forward_reads, nominalQ = TRUE) + 
+  labs(title = "Forward Reads: Error Model")
+
+## Reverse
+reverse_error_plot <- 
+  plotErrors(error_reverse_reads, nominalQ = TRUE) + 
+  labs(title = "Reverse Reads: Error Model")
+
+# Plot them together 
+forward_error_plot + reverse_error_plot
 ```
+
+# Infer ASVs Separately on Forward and Reverse Reads 
+
+```{r infer-ASVs}
+# Forward ASV Inference 
+dada_forward <- 
+  dada(filtered_forward_reads, 
+       err = error_forward_reads, 
+       multithread = n_threads)
+
+# Reverse ASV Inference
+dada_reverse <- 
+  dada(filtered_reverse_reads, 
+       err = error_reverse_reads, 
+       multithread = n_threads)
+
+# Take a look at the data 
+typeof(dada_forward)
+dada_forward
+str(dada_forward)
+str(dada_forward$WaterControl_R1_filtered.fastq.gz)
+```
+
+# Merge Forward & Reverse ASVs 
+
+```{r merge-ASVs}
+merged_ASVs <- 
+  mergePairs(dada_forward, filtered_forward_reads, 
+             dada_reverse, filtered_reverse_reads, 
+             verbose = TRUE)
+
+# Evaluate the output 
+typeof(merged_ASVs)
+length(merged_ASVs)
+head(merged_ASVs)
+
+# Take a look at a sample 
+merged_ASVs$WaterControl_R1_filtered.fastq.gz
+```
+
+# Create Raw ASV Count Table 
+
+```{r raw-asv-table}
+raw_ASV_table <- makeSequenceTable(merged_ASVs)
+
+# What are the dimensions of that table 
+dim(raw_ASV_table)
+rownames(raw_ASV_table)
+colnames(raw_ASV_table)
+typeof(raw_ASV_table)
+class(raw_ASV_table)
+```
+
+
 
 
