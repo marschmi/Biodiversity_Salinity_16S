@@ -4200,6 +4200,10 @@ the error model.</li>
 <li>Write out relevant files: <code>asv_table</code>,
 <code>asvs_fasta</code>, <code>tax_table</code>, and
 <code>sample_data</code>.</li>
+<li>Create a <strong>S4</strong> R data object, which in this case is
+known as a phyloseq, object from the <code>asv_table</code>,
+<code>tax_table</code>, and metadata. This will give us one data object
+to work with moving forward. :)</li>
 </ol>
 <div id="input" class="section level2">
 <h2>Input</h2>
@@ -6746,8 +6750,8 @@ downstream analyses.</p>
 <pre><code>## [1] 95</code></pre>
 </div>
 </div>
-<div id="phyloseq" class="section level1">
-<h1>Phyloseq</h1>
+<div id="phyloseq-s4-object-creation" class="section level1">
+<h1>Phyloseq S4 Object Creation</h1>
 <p>To start this section of this lesson, please make sure that you have
 phyloseq installed!</p>
 <div class="sourceCode" id="cb240"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb240-1"><a href="#cb240-1" tabindex="-1"></a><span class="co"># Construct the phyloseq object </span></span>
@@ -6774,11 +6778,11 @@ phyloseq installed!</p>
 <div class="sourceCode" id="cb243"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb243-1"><a href="#cb243-1" tabindex="-1"></a><span class="co"># Take the time now that we are at the end of the script</span></span>
 <span id="cb243-2"><a href="#cb243-2" tabindex="-1"></a>end_time <span class="ot">&lt;-</span> <span class="fu">Sys.time</span>()</span>
 <span id="cb243-3"><a href="#cb243-3" tabindex="-1"></a>end_time </span></code></pre></div>
-<pre><code>## [1] &quot;2026-03-18 13:31:20 EDT&quot;</code></pre>
+<pre><code>## [1] &quot;2026-03-18 13:42:34 EDT&quot;</code></pre>
 <div class="sourceCode" id="cb245"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb245-1"><a href="#cb245-1" tabindex="-1"></a><span class="co"># Echo the elapsed time</span></span>
 <span id="cb245-2"><a href="#cb245-2" tabindex="-1"></a>elapsed_time <span class="ot">&lt;-</span> <span class="fu">round</span>((end_time <span class="sc">-</span> start_time), <span class="dv">3</span>)</span>
 <span id="cb245-3"><a href="#cb245-3" tabindex="-1"></a>elapsed_time</span></code></pre></div>
-<pre><code>## Time difference of 8.394 mins</code></pre>
+<pre><code>## Time difference of 8.455 mins</code></pre>
 </div>
 <div id="session-information" class="section level2">
 <h2>Session Information</h2>

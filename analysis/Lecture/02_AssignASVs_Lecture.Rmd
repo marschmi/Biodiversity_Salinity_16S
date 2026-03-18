@@ -35,6 +35,7 @@ knitr::opts_chunk$set(echo = TRUE,
 6. Remove chimeras. 
 7. Assign Taxonomy with Silva Database. 
 8. Write out relevant files: `asv_table`, `asvs_fasta`, `tax_table`, and `sample_data`.
+9. Create a **S4** R data object, which in this case is known as a phyloseq, object from the `asv_table`, `tax_table`, and metadata. This will give us one data object to work with moving forward. :)
 
 ## Input 
 
@@ -827,7 +828,7 @@ length(sample_names(metadata_physeq))
 ```
 
 
-# Phyloseq 
+# Phyloseq S4 Object Creation 
 
 To start this section of this lesson, please make sure that you have phyloseq installed! 
 
