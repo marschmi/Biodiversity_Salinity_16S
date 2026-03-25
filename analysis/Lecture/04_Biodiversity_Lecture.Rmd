@@ -223,12 +223,16 @@ iNEXT_input_df[1:5, 1:5]
 #iNEXT_data <- iNEXT(iNEXT_input_df, 
 #                    q = c(0, 1, 2),
 #                    datatype = "abundance")
+
+# Save the object for later! 
+# Make the directory first in shell! Otherwise there will be an error
+#save(iNEXT_data, file = "data/Lecture/04_Biodiversity_Lecture/iNEXT_data.RData")
 ```
 
 Since iNEXT takes a while to run, we will load in the data that was caluculated before! 
 
 ```{r load-iNEXT-data}
-load("data/04_Biodiversity/iNEXT_data.RData")
+load("data/Lecture/04_Biodiversity_Lecture/iNEXT_data.RData")
 
 # Inspect 
 str(iNEXT_data)
@@ -246,13 +250,15 @@ color_df <-
   iNEXT_input_df %>%
   colnames() %>%
   data.frame()
-# Check
-head(color_df)
-# Rename the column 
-colnames(color_df)[1] <- "names"
+
 # Check
 head(color_df)
 
+# Rename the column 
+colnames(color_df)[1] <- "names"
+
+# Check
+head(color_df)
 
 # Make a helper dataframe for plotting with colors 
 iNEXT_color_df <- 
@@ -274,7 +280,7 @@ head(iNEXT_color_df)
 ggiNEXT(iNEXT_data, type = 1, facet.var = "Order.q") + 
   scale_color_manual(values = iNEXT_color_df$station_colors) + 
   scale_fill_manual(values = iNEXT_color_df$station_colors) + 
-  scale_shape_manual(values = base::rep(17, nsamples(archaeal_rooted_physeq))) + 
+  scale_shape_manual(values = base::rep(17, nsamples(preprocessed_physeq))) + 
   theme_bw() + 
   theme(legend.position = "none") + 
   labs(y = "Effective Number of ASVs", x = "Number of Sequences") 
