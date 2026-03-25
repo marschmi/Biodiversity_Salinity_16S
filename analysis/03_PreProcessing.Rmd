@@ -1,0 +1,64 @@
+---
+title: "Preprocessing Data Analysis"
+author: "Mar Schmidt"
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup}
+knitr::opts_chunk$set(fig.path = "../figures/03_PreProcessing")
+```
+
+
+# Goals 
+
+1. Remove chloroplasts. 
+2. Remove mitochondria 
+3. Remove ASVs from negative controls. And, remove negative control samples. 
+4. Evaluate sequencing accuracy with the mock community (positive control).
+5. Look for reverse complements. 
+6. Sequencing Depth: Remove samples without enough reads (obvious). 
+
+
+# Input 
+
+1. Raw phyloseq object. 
+
+```
+mkdir 02_AssignASVs # inside the data
+cp /workdir/in_class_data/raw_physeq.RData /workdir/netID/Biodiversity_Salinity_16S/data/02_AssignASVs
+```
+
+# Output 
+
+1. Cleaned up phyloseq object called `data/03_PreProcessing/preprocessed_physeq.RData`
+
+
+# Set up the Environment
+
+```{r load-packages-data}
+set.seed(238428)
+
+# Load packages 
+pacman::p_load(phyloseq, tidyverse, install = FALSE)
+
+# Load data 
+load("data/02_AssignASVs/raw_physeq.RData")
+# Take a look 
+raw_physeq
+```
+
+# Clean up the data 
+
+## Chloroplasts & Mitochondria 
+
+```{r}
+raw_physeq %>%
+  subset_taxa(Order != "Chloroplast" | is.na(Order))
+
+# How to access data in a phyloseq object? 
+#View(otu_table(raw_physeq))
+
+
