@@ -401,10 +401,10 @@ str(scaled_sorensen_dist)
 scaled_bray_dist <- phyloseq::distance(scaled_physeq, method = "bray", binary = FALSE)
 
 # Abundance-Unweighted UniFrac
-scaled_uUnifrac_dist <- phyloseq::distance(scaled_physeq, method = "unifrac")
+#scaled_uUnifrac_dist <- phyloseq::distance(scaled_physeq, method = "unifrac")
 
 # Abundance-Weighted UniFrac
-scaled_wUnifrac_dist <- phyloseq::distance(scaled_physeq, method = "wunifrac")
+#scaled_wUnifrac_dist <- phyloseq::distance(scaled_physeq, method = "wunifrac")
 ```
 
 <span style="color: red;">INTERPRETATION #4:  Which dissimilarity metric is most related to your scientific question? Why or why not?</span>
