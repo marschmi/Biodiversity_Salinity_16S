@@ -46,8 +46,64 @@ iNEXT_input_df[1:5, 1:3]
 # Run iNEXT 
 #iNEXT_data <- 
 #  iNEXT(iNEXT_input_df, q = c(0, 1, 2), datatype = "abundance")
+load("data/04_Biodiversity/iNEXT_data.RData")
 
+# Inspect Data 
+str(iNEXT_data)
+```
+
+# Plot Rarefaction Curves
+
+## Prepare Metadata
+```{r prep-metadata}
+# Make a metadata object
+metadata_df <- 
+  preprocessed_physeq %>%
+  sample_data() %>%
+  data.frame()
+# take a look
+glimpse(metadata_df)
+
+# Create Color dataframe for plotting 
+color_df <- 
+  iNEXT_input_df %>%
+  colnames() %>%
+  data.frame()
+glimpse(color_df)
+
+# Add a names column 
+colnames(color_df)[1] <- "names"
+head(color_df)
+
+iNEXT_color_df <- 
+  color_df %>%
+  # fix sample names 
+  mutate(names = gsub(names, pattern = "[.]", replace = "-"),
+         names = gsub(names, pattern = "X", replace = ""))  %>%
+  # Merge with metadata 
+  left_join(metadata_df, by = "names") %>%
+  # Merge with colors 
+  left_join(
+    data.frame(salinity_colors = salinity_colors,
+               salinity_group = names(salinity_colors)),
+            by = "salinity_group")
+# Intuition Check
+head(iNEXT_color_df$salinity_colors)
 ```
 
 
 
+```{r plot-rarefaction}
+ggiNEXT(iNEXT_data, type = 1, facet.var = "Order.q") + 
+  scale_color_manual(values = iNEXT_color_df$salinity_colors) +
+  scale_fill_manual(values = iNEXT_color_df$salinity_colors) + 
+  theme_bw() + 
+  theme(legend.position = "none") + 
+  labs(y = "Effective Number of ASVs",
+       x = "Number of Sequences")
+```
+
+What conclusions can we draw from this plot? 
+
+1. The y-axis values go down as we weight abundance from `q = 0, 1, 2`  
+2. As abundance is weighted, the curve asymptotes faster. Meaning that richness is the *most sensitive* to sequencing depth whereas Simpsons
