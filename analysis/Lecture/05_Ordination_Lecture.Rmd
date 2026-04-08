@@ -21,7 +21,7 @@ editor_options:
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = TRUE, 
-                      fig.path = "../figures/Lecture/06_Ordination_Lecture/")
+                      fig.path = "../../figures/Lecture/05_Ordination_Lecture/")
 ```
 
 # Goals 
@@ -83,7 +83,7 @@ pacman::p_load(tidyverse, devtools, phyloseq, patchwork, vegan,
                install = FALSE)
 
 # Load Colors 
-source("code/colors.R")
+source("code/colors_and_shapes.R")
 
 # Load functions 
 source("code/functions.R")
