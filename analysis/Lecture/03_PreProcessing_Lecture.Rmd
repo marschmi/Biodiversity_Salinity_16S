@@ -22,7 +22,7 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE,
                       fig.align = "center",
                       # send any figure output to this folder 
-                      fig.path = "../figures/02_PreProcessing/") 
+                      fig.path = "../../figures/Lecture/03_PreProcessing/") 
 ```
 
 # Goals
@@ -421,6 +421,82 @@ seqSums_df %>%
 ```
 
 # Save Preprocessed Phyloseq Object
+
+## Add some metadata
+
+We will add: 
+
+1. A discrete column called `salinity_group` that is made from the continuous data as indicated below. 
+2. The Sequencing Depth of each sample
+
+We will add the salinity group based on the follow values. We will also make sure the metadata is in the correct order for analyses later.
+
+
+| Salinity Group | Range (PSU) | Count |
+|----------------|-------------|--------|
+| Very Low       | 0–7         | 5      |
+| Low            | >7–13       | 5      |
+| Mid            | >13–20      | 11     |
+| High           | >20         | 8      |
+
+
+```{r add-metadata}
+# Let's add a metadata column to the file for this dataset before moving on. 
+# We will create a discrete, categorical variable called "salinity_group" out of the continuous form of the data. 
+# 
+metadata_df <- 
+  preprocessed_physeq %>% 
+  sample_data() %>%
+  data.frame() %>%
+  mutate(depth_cat = ifelse(depth == 0.0, "surface", "bottom"),
+         # Create a new column for salinity group
+         salinity_group = factor(
+           cut(salinity_psu,
+               breaks = c(-Inf, 7, 13, 20, Inf),
+               labels = c("Very Low", "Low", "Mid", "High"),
+               right = TRUE),
+           # Make sure the factor order is correct
+           levels = c("Very Low", "Low", "Mid", "High"), ordered = TRUE),
+         # Fix the factor orders for date, station, and depth category 
+         date = factor(date, levels = c("6/2/21", "6/15/21", "10/5/21"), ordered = TRUE),
+         depth_cat = factor(depth_cat, levels = c("surface", "bottom"), ordered = TRUE),
+         station = factor(station, levels = c("Copano West", "Copano East","Mesquite Bay",
+                                              "Aransas Bay","Shipping Channel"), 
+                          ordered = TRUE))
+
+### Let's add the sequencing count data, so that doesn't get lost! 
+# What are the sample size distributions?
+num_seqs_df <- 
+  preprocessed_physeq %>%
+  sample_sums() %>%
+  data.frame() %>%
+  rownames_to_column(var = "names")
+
+# Fix the column names 
+colnames(num_seqs_df)[2] <- "Sequencing_Depth"
+
+# Now merge it all 
+metadata_df2 <- 
+  metadata_df %>%
+  left_join(num_seqs_df, by = "names")
+
+## Check they match
+stopifnot(metadata_df$names == metadata_df2$names)
+
+# Rename the rows 
+rownames(metadata_df2) <- metadata_df2$names
+
+# Reassign to the phyloseq object, rewriting the old metadata 
+sample_data(preprocessed_physeq) <- metadata_df2
+
+# Double check
+colnames(data.frame(sample_data(preprocessed_physeq)))
+
+# Intuition check 
+head(num_seqs_df)
+```
+
+## Finally, save the phyloseq object
 ```{r save-physeq}
 # Please be sure to use the correct path to the appropriate directory in your file system
 save(preprocessed_physeq, file = "data/Lecture/03_PreProcessing_Lecture/preprocessed_phyloseq.RData")
