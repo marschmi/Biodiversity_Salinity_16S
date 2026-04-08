@@ -22,7 +22,7 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE,
                       fig.align = "center", 
                       # Send figures generated in this file to this folder below
-                      fig.path = "../figures/Lecture/02_AssignASVs_Lecture/")
+                      fig.path = "../../figures/Lecture/02_AssignASVs_Lecture/")
 ```
 
 # Goals 
