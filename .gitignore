@@ -2,6 +2,7 @@ data/00_raw_gzipped_fastqs/*.fastq.gz
 .Rproj.user
 data/*/*.fastq.gz
 data/*/*/*.fastq.gz
+.Rhistory
 
 # Universally ignore .fastq.gz
 **/*.fastq.gz

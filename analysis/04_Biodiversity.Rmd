@@ -1,0 +1,53 @@
+---
+title: "Biodiversity Analysis"
+author: "Mar Schmidt"
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# Load Packages & Colors 
+
+```{r load-packages-colors}
+pacman::p_load(tidyverse, patchwork, iNEXT, phyloseq,
+               install = FALSE)
+
+# Load in colors for plotting 
+source("code/colors_and_shapes.R")
+```
+
+# Load the Preprocessed Phyloseq Data
+
+```{r load-data}
+load("data/03_PreProcessing/preprocessed_phyloseq.RData")
+
+# Take a look at the data 
+preprocessed_physeq
+
+# Intuition check on sequencing depth 
+min(sample_sums(preprocessed_physeq))
+```
+
+# Calculate Biodiversity with Hill Numbers 
+
+```{r calc-biodiv}
+# Prepare input data 
+## species = rows; samples = columns
+iNEXT_input_df <- 
+  preprocessed_physeq %>%
+  otu_table() %>%
+  data.frame()
+
+# inspect
+dim(iNEXT_input_df)
+iNEXT_input_df[1:5, 1:3]
+
+# Run iNEXT 
+#iNEXT_data <- 
+#  iNEXT(iNEXT_input_df, q = c(0, 1, 2), datatype = "abundance")
+
+```
+
+
+
