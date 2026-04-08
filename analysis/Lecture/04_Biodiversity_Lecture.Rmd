@@ -20,7 +20,7 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, 
-                      fig.path = "../../figures/Lecture/05_Biodiversity_Lecture/")
+                      fig.path = "../../figures/Lecture/04_Biodiversity_Lecture/")
 ```
 
 # Goals 
@@ -88,7 +88,7 @@ pacman::p_load(tidyverse, devtools, patchwork, iNEXT, phyloseq,
                ggpubr, rstatix, install = FALSE)
 
 # Load in colors for plotting 
-source("code/colors.R")
+source("code/colors_and_shapes.R")
 ```
 
 ## Load in Data 
@@ -223,13 +223,13 @@ iNEXT_input_df[1:5, 1:5]
 
 # Save the object for later! 
 # Make the directory first in shell! Otherwise there will be an error
-#save(iNEXT_data, file = "data/Lecture/05_Biodiversity_Lecture/iNEXT_data.RData")
+#save(iNEXT_data, file = "data/Lecture/04_Biodiversity_Lecture/iNEXT_data.RData")
 ```
 
 Since iNEXT takes a while to run, we will load in the data that was caluculated before! 
 
 ```{r load-iNEXT-data}
-load("data/Lecture/05_Biodiversity_Lecture/iNEXT_data.RData")
+load("data/Lecture/04_Biodiversity_Lecture/iNEXT_data.RData")
 
 # Inspect 
 str(iNEXT_data)
