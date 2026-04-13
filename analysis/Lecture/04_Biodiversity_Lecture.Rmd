@@ -279,7 +279,6 @@ head(iNEXT_color_df)
 ggiNEXT(iNEXT_data, type = 1, facet.var = "Order.q") + 
   scale_color_manual(values = iNEXT_color_df$salinity_colors) + 
   scale_fill_manual(values = iNEXT_color_df$salinity_colors) + 
-  scale_shape_manual(values = base::rep(17, nsamples(preprocessed_physeq))) + 
   theme_bw() + 
   theme(legend.position = "none") + 
   labs(y = "Effective Number of ASVs", x = "Number of Sequences") 
