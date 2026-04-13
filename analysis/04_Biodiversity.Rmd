@@ -46,6 +46,8 @@ iNEXT_input_df[1:5, 1:3]
 # Run iNEXT 
 #iNEXT_data <- 
 #  iNEXT(iNEXT_input_df, q = c(0, 1, 2), datatype = "abundance")
+
+
 load("data/04_Biodiversity/iNEXT_data.RData")
 
 # Inspect Data 
