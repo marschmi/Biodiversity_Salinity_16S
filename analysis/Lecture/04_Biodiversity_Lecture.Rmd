@@ -480,7 +480,7 @@ Choose your statistical approach based on the:
 # Categorical Analysis: 2 or more groups 
 
 
-### Salinity By Station
+### Salinity By Group
 
 Here, in this example, our question regarding alpha diversity is related to station, which roughly correlates with salinity. In this case, we have a continuous variable on the y-axis and a categorical variable on the x-axis. 
 
@@ -530,9 +530,9 @@ salinity_ggboxplot
 
 Great, this matches what we had defined during the pre-processing steps! 
 
-### Diversity by Station
+### Diversity by Salinity Group
 
-```{r make-obs-df}
+```{r plot-div-salinityGroup-noStats}
 # Plot boxplots by station against diversity
 obs_div_df %>%
   ggplot(aes(x = salinity_group, y = qD, fill = salinity_group, 
@@ -552,10 +552,10 @@ obs_div_df %>%
 ```
 
 
-#### Statistically test Richness
+### Richness vs Salinity Group
 
 
-```{r station-diversity-richness, fig.height=4, fig.width=4}
+```{r salinityGroup-vs-richness, fig.height=4, fig.width=4}
 # Pull out richness data 
 obs_rich_df <- 
   obs_div_df %>%
@@ -594,9 +594,9 @@ rich_ggboxplot <-
 ```
 
 
-### Simpson
+### Simpson vs Salinity Group
 
-```{r station-diversity-simpson, fig.height=4, fig.width=4}
+```{r salinityGroup-vs-simpson, fig.height=4, fig.width=4}
 # Pull out simpson data 
 obs_simps_df <- 
   obs_div_df %>%
