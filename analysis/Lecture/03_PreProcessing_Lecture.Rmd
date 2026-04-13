@@ -29,12 +29,14 @@ knitr::opts_chunk$set(echo = TRUE,
 
 The goal with this file is to pre-process any other contaminants and unexpected ASVs from our sample. We will need to: 
 
-1. Remove Chloroplasts.
-2. Remove Mitochondria. 
-3. Removing ASVs from negative controls and also negative control samples.  
-4. Evaluate accuracy by looking at the Mock Community.  
-5. Check for reverse complements!
-6. Remove samples without "enough" reads. 
+1. Remove any contaminating ASVs that are **chloroplasts**. 
+2. Remove ASVs that are **mitochondria**. 
+3. Evaluate any ASVs from the **negative controls**. Then, remove negative controls. 
+4. Evaluate the mock community or **positive control** to learn the accuracy of sequencing. 
+5. Check for **reverse complements**. 
+6. Check the **sequencing depth** of samples. Remove samples that obviously have too few reads. 
+7. Add the metadata for class dataset (Note: Your data may already be in your `sample_data()`). 
+8. Write a `preprocessed_physeq` to be used in the next step of our workflow. 
 
 ## Input 
 
@@ -70,7 +72,9 @@ start_time <- Sys.time()
 ## Load packages  
 ```{r load-libraries}
 # Load packages 
-pacman::p_load(devtools, phyloseq, Biostrings, tidyverse, dada2, install = FALSE)
+pacman::p_load(devtools, phyloseq, Biostrings, tidyverse, dada2, patchwork,
+               # Note to add ggpubr & rstatix!!
+               ggpubr, rstatix, install = FALSE)
 ```
 
 
@@ -86,12 +90,16 @@ raw_physeq
 
 # Clean up the data
 
-Now, we can do some more cleaning! We know that there are organelles in eukaryotes derived from microbes, which still have a 16S that will contaminate our samples. Let's remove those! 
+**Chloroplasts** and **mitochondria** need to be removed from 16S datasets because they contain their own 16S rRNA genes, which are evolutionarily derived from bacteria. These organelles can be unintentionally amplified during PCR, especially in samples from plants (chloroplasts) or animals (mitochondria), leading to misleading results by inflating microbial diversity.
 
-1. Chloroplasts
-2. mitochondria  
+This is explained by the [endosymbiotic theory](https://bio.libretexts.org/Bookshelves/Microbiology/Microbiology_(Kaiser)/Unit_4%3A_Eukaryotic_Microorganisms_and_Viruses/07%3A_The_Eukaryotic_Cell/7.8%3A_The_Endosymbiotic_Theory), which proposes that mitochondria and chloroplasts originated from free-living bacteria that were engulfed by ancestral eukaryotic cells. Over time, they became permanent, symbiotic organelles with their own genomes. Because of this bacterial ancestry, their 16S rRNA genes are similar to those targeted in bacterial 16S profiling, even though they are part of the host organism and not part of the microbial community being studied.
 
-```{r rm-mitos-chloros}
+Removing these sequences ensures the analysis reflects true bacterial and archaeal diversity in the environment or host.
+
+## 1. Remove Chloroplasts
+
+
+```{r rm-chloros}
 # Let's tak a quick look at the tax table 
 # View(tax_df) # Let's see where chloroplasts are and also mitochondria
 
@@ -110,7 +118,13 @@ num_chloro_ASVs
 #  tax_table() %>%
 #  data.frame() %>%
 #  View()
+```
 
+There were `r num_chloro_ASVs` ASVs that were chloroplasts.
+
+## 2. Remove Mitochondria  
+
+```{r rm-mitos}
 # remove mitochondria 
 noChlorosMitos_physeq <- 
   noChloros_physeq %>%
@@ -122,7 +136,14 @@ num_mito_ASVs
 
 # Let's take a quick look 
 noChlorosMitos_physeq
+```
 
+There were `r num_mito_ASVs` ASVs that were mitochondria in the data set.
+
+<span style="color: red;">INTERPRETATION #1: How many chloroplast and/or mitochondrial ASVs in your dataset? Does this seem reasonable?</span> 
+
+
+```{r rm-mitos-chloros}
 # How many total asvs were removed from chloros and mitos? 
 ntaxa(raw_physeq) - ntaxa(noChlorosMitos_physeq)
 # proportion of asvs kept? 
@@ -137,64 +158,191 @@ Now, let's take a look at the negative controls and then make a decision about w
 2. ASVs found within the negative controls and their distribution in the samples. 
 3. Evaluate the mock community 
 
-## Negative Controls 
-```{r neg-controls}
-# create a vector of samples that were negative controls 
-control_samples <- c("WaterControl", "022um-Control", "3um-Control", "DNA-Ext-Control")
+## 3. Negative Controls
 
-# Make a new phyloseq object of only the control samples 
-control_physeq <- 
+Including negative controls in your 16S sequencing workflow is a critical step that helps you identify potential contamination and confidently interpret your results—**especially if you’re working with low-biomass** samples like water, air, or host-associated (*e.g.,* skin, etc) surfaces. 
+
+Even in the cleanest labs, contamination can creep in at any point in the pipeline: from the DNA extraction kit, PCR reagents, plastic consumables, or even aerosols in the lab. These contaminants often include low-level bacterial DNA that can be amplified just as efficiently as your true sample DNA, leading to false signals in your data. Negative controls help you detect and remove these artifacts.
+
+The main types of negative controls you should consider including in your 16S rRNA gene analyses include the following: 
+
+1. **DNA Extraction Blank (Extraction Negative Control):** This control is processed alongside your samples but without any actual biological material—you just use the extraction buffer or nuclease-free water. It goes through the entire DNA extraction process, just like your real samples. Each time you open a new kit another DNA extraction blank should be created! In our lab, we always record the lot number of our extraction kit and add it to the DNA metadata for that sample. 
+    - *Why it’s important:* This control helps you detect contamination introduced during the extraction step—often from kits (a phenomenon known as the kitome), tubes, pipette tips, or other surfaces.
+2. **PCR No-Template Control (NTC):** For this control, you set up a PCR reaction using water instead of DNA as the template. Everything else—primers, polymerase, buffer—is the same as your actual PCR reactions.
+    - *Why it’s important:* This checks for contaminants introduced during PCR setup, such as aerosolized DNA, primer dimer artifacts, or contamination from reagents like Taq or water.
+    - *Note:* A NTC control should be included in your dataset from each step of PCR that your sample goes through. For example, **in the standard Illumina 2-step PCR library prep, two separate NTC controls should be included** for both the 1st PCR step where the 16S rRNA gene-specific primers are used with the Illumina adapter overhangs, and the 2nd PCR step where the indices and P5 and P7 are added to the end of the amplicons. Therefore, a blank sample that is carried all the way through barcoding, library prep, pooling, and sequencing. Treat it exactly like a real sample in your workflow. These control helps detect contamination introduced within and after PCR, such as cross-contamination during amplicon pooling, barcode cross-talk, or reagent contamination during library preparation.
+3. **Field Control:** This type of control is a blank sample (*e.g.,* sterile water, buffer, or a clean swab) that is handled *exactly* like your real samples, but without exposure to the environment or biological material that is being studied. It goes through:
+    - The same collection materials (e.g., bottles, filters, swabs).
+    - The same handling (e.g., gloves, tools, transport containers). 
+    - And is stored or processed at the same time and under the same conditions as your actual field samples. 
+    - Extracted and prepared exactly as every other sample. 
+    - *What are examples of field controls?*
+        - Examples:
+            - *Water samples:* Pour sterile water into a sterile sampling bottle at the site (without exposing it to the lake/river), filter it as if it were a sample.
+            - *Swab samples:* Open a sterile swab, wave it near the sampling area without touching anything, then store it with your other samples.
+            - *Sediment or soil samples*: Open up the collection tube to the open air and use a clean scoop (with the same cleaning method as you would between actual samples) to transfer sterile material or nothing at all into your collection container. 
+            
+Negative controls are not optional—they are essential for data quality, reproducibility, and trust in your results. By including extraction blanks, PCR no-template controls, and field controls, you’ll be equipped to identify contamination, assess its impact, and clean your data before making biological interpretations.
+
+**So, here in this section we will use the negative control samples to:**
+
+a. Make a phyloseq object that only has our negative controls. 
+b. Evaluate negative control ASVs in samples versus controls by visualizing potential ASV contaminants in negative controls using plots. Here, we will manually do it, but please be aware that there's also the [decontam R Package](https://benjjneb.github.io/decontam/vignettes/decontam_intro.html) that does this, too!
+c. Remove any ASVs in the negative controls. 
+
+
+### 3a. Evaluate Negative Control ASVs in Samples vs Controls
+
+```{r neg-control-physeq, fig.width=7, fig.height=3}
+# Make a phyloseq object with only the negative controls 
+neg_control_samples <- c("WaterControl", "022um-Control", "3um-Control", "DNA-Ext-Control")
+
+# Create a phyloseq object with only negative controls 
+neg_control_physeq <- 
   noChlorosMitos_physeq %>%
-  subset_samples(., names %in% control_samples) %>%
+  subset_samples(., names %in% neg_control_samples) %>%
   # force remove ASVs with 0 counts 
   prune_taxa(taxa_sums(.) > 0, .)
 
 # Let's take a look
-control_physeq
+neg_control_physeq
 
-# vector of control asvs
-control_ASVs <- 
-  control_physeq %>%
+# vector of negative control asvs
+neg_control_ASVs <- 
+  neg_control_physeq %>%
   tax_table() %>%
   data.frame() %>%
   dplyr::select(ASV) %>%
   as.vector()
 
 # Visualize raw abundance values of control ASVs
-control_physeq %>%
+neg_control_physeq %>%
   plot_bar(., "ASV", fill = "ASV")
+```
 
+
+
+### 3b. Evaluate Negative Control ASVs in Samples vs Controls
+
+```{r negControl-ASVs-SamplesVSControls, fig.width=5, fig.height=4}
+# What's the abundance of these neg control ASVs in real samples? 
 ############# Check the control ASVs in the samples 
 # Make new phyloseq object with only the control ASVs and ALL samples 
-controlASV_physeq <- 
+neg_controlASV_physeq <- 
   noChlorosMitos_physeq %>%
-  subset_taxa(., ASV %in% control_ASVs$ASV)
+  subset_taxa(., ASV %in% neg_control_ASVs$ASV)
 
 # Inspect it 
-controlASV_physeq
+neg_controlASV_physeq
 
-# Let's take a look at the abundances 
-controlASV_physeq %>%
+# Plot Abundances of neg control ASVs in samples versus controls 
+neg_controlASV_physeq %>%
   plot_bar(., "ASV", fill = "ASV", facet_grid = Sample_or_Control~.)
+```
 
-# Check tax of ASV_0003
-#controlASV_physeq %>%
-#  tax_table() %>%
-#  data.frame() %>%
-#  View()
+Now, let's take a look a bit more of a closer look at each ASV and evaluate the statistical significance. 
 
-# Would only like to keep ASV_0019 and ASV_0055, everything else is trash
-controlASVs_toREMOVE <- dplyr::setdiff(control_ASVs$ASV, c("ASV_0019", "ASV_0055"))
+
+```{r negControl-byASV, fig.width=8, fig.height=7}
+# Calculate the phylum relative abundance 
+# Note: The read depth MUST be normalized in some way: scale_reads
+asv_negControls_df <- 
+  neg_controlASV_physeq %>%
+  # agglomerate at the ASV level 
+  tax_glom(taxrank = "ASV") %>% 
+  # Melt to a long format 
+  psmelt()
+
+# Check the taxonomy of each ASV
+asv_negControls_df %>%
+  dplyr::select(Kingdom:ASV) %>%
+  distinct() # Each ASV's taxonomy will be in a single row
+
+dim(asv_negControls_df)
+
+# Statistically test! 
+negControl_ASV_statTest <- 
+  asv_negControls_df %>%
+  group_by(ASV) %>%
+  wilcox_test(Abundance ~ Sample_or_Control) %>%
+  # Add the x and y positions for plotting 
+  adjust_pvalue(method = "fdr") %>%
+  # Make the significance values be stars for plotting
+  add_significance() %>%
+  # Calculate where to place it on the facet grid plot
+  add_xy_position(x = "Sample_or_Control", fun = "max", scales = "free") %>%
+  # bring the pvalues a lil lower
+  mutate(y.position = y.position * 0.82)
+
+## Using ggpubr 
+ggboxplot(
+  asv_negControls_df, 
+  x = "Sample_or_Control", y = "Abundance", 
+  color = "Sample_or_Control",
+  facet.by = "ASV", scales = "free_y",add = "jitter") + 
+  stat_pvalue_manual(negControl_ASV_statTest) + 
+  scale_color_manual(values = c("firebrick3", "cornflowerblue")) + 
+  scale_fill_manual(values = c("firebrick3", "cornflowerblue")) + 
+  theme_bw() + 
+  theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
+        legend.title = element_blank(), legend.position = c(0.85, 0.07)) 
+```
+
+From the plot above, it actually looks like we should include `ASV_0019` and `ASV_0055` in our analyses. While we notice that ASV_0055 is not significantly different between the sample and control, we should take this with a grain of salt as our statistical comparison is 
+
+
+
+#### Check Taxonomy
+```{r negControl-ASV-taxonomy}
+asv_negControls_df %>%
+  dplyr::filter(OTU %in% neg_control_ASVs$ASV) %>%
+  dplyr::select(Kingdom:ASV) %>%
+  unique() %>%
+  arrange(ASV)
+```
+
+The taxonomy of the two ASVs in question are: 
+
+- `ASV_0019`: Genus is *Candidatus Aquiluna*, which is a common freshwater microbe that is often found in oligotrophic lakes, where it likely contributes to dissolved organic carbon utilization.
+- `ASV_0055`: Family is *MWH-UniP1 aquatic group* and has been detected in low-nutrient (oligotrophic) aquatic environments and may be involved in organic carbon cycling. They are typically free-living planktonic microbes that survive by utilizing dissolved organic compounds.
+
+Therefore, based on the taxonomy of the two ASVs in question, we should probably keep both of them! 
+
+
+```{r asvs-to-keep-plot, fig.height=2.5, fig.width=4}
+# Let's zoom in only on these two that we care about! 
+asv_negControls_df %>%
+  dplyr::filter(OTU %in% c("ASV_0019", "ASV_0055")) %>%
+  ggplot(aes(x = Sample_or_Control, y = Abundance, 
+             color = Sample_or_Control, fill = Sample_or_Control)) + 
+  geom_boxplot(alpha =0.3, outlier.shape = NA) + 
+  geom_jitter() + 
+  facet_wrap(.~ASV, scales = "free") + 
+  scale_color_manual(values = c("firebrick3", "cornflowerblue")) + 
+  scale_fill_manual(values = c("firebrick3", "cornflowerblue")) +
+  theme_bw() + theme(legend.position = "none")
+```
+
+
+
+### 3c. Remove any ASVs in the negative controls. 
+
+Now, let's actually remove the ASVs that are more abundant in the negative controls compared to the samples. 
+
+
+```{r rm-negControl-ASVs}
+# Would only like to keep ASV_0019 and ASV_0055, everything else will be removed
+controlASVs_toREMOVE <- dplyr::setdiff(neg_control_ASVs$ASV, c("ASV_0019", "ASV_0055"))
 # double check 
 length(controlASVs_toREMOVE)
 
-### Make my new phloseq object 
+# Make new phyloseq object with negControl ASVs removed 
 noControlsChlorosMitos_physeq <- 
   noChlorosMitos_physeq %>%
   # Actually remove the control ASVs 
   subset_taxa(., !(ASV %in% controlASVs_toREMOVE)) %>%
   # Remove control samples 
-  subset_samples(., !(names %in% control_samples))
+  subset_samples(., !(names %in% neg_control_samples))
 
 # Inspect no controls object 
 noControlsChlorosMitos_physeq
@@ -204,16 +352,27 @@ total_ASVs_rm <- ntaxa(raw_physeq) - ntaxa(noControlsChlorosMitos_physeq)
 total_ASVs_rm
 ```
 
-# Evaluate Accuracy in the Mock Community 
+<span style="color: red;">INTERPRETATION #2: Did your dataset have any negative controls? If so, how many ASVs did you remove? Does that seem reasonable to you?</span>
 
-- make a mock phyloseq object
-- load in the standard fasta sequences of the mock community  
-- test for differences between the two 
 
+# 4. Positive Controls 
+
+### What is a positive control? 
+
+A **positive control** is a sample that should produce a known result, which allows researchers to verify accuracy, detect bias or contamination, and troubleshoot technical problems. In 16S sequencing, this usually means:
+
+1.	**A mock community**: A mixture of known microbial strains or DNA, with defined composition and relative abundances.
+2.	**A well-characterized natural sample**: For example, a fecal sample or environmental sample that’s been extensively profiled before and behaves consistently across experiments.
+
+We will evaluate the accuracy of the sequencing run with the mock community, which we are using here as our "positive control". To this you will need to access the `/workdir/in_class_data/mock_amplicons.fasta`, which is the file for the [ZymoBIOMICS Microbial Community DNA Standard](https://www.zymoresearch.com/collections/zymobiomics-microbial-community-standards/products/zymobiomics-microbial-community-dna-standard). We will: 
+
+1. Make a mock community phyloseq object
+2. Load in the standard fasta sequences of the expected mock community using `/workdir/in_class_data/mock_amplicons.fasta`.
+3. Test for differences between the sequenced mock communities and the known, expected sequences.  
 
 Before this next section, please make sure to copy over the `mock_amplicons.fasta` file from `/workdir/in_class_data/`
 
-```{r}
+```{r eval-accuracy}
 # Make mock phyloseq object 
 mock_physeq <- 
   noControlsChlorosMitos_physeq %>%
@@ -263,7 +422,6 @@ mock_SeqDepth <-
   data.frame() %>%
   colSums()
 
-
 # Who is in the sequenced mock community? 
 mock_physeq %>%
   tax_table() %>%
@@ -278,8 +436,12 @@ noControlsChlorosMitos_physeq %>%
   t()
 ```
 
-What can we conclude about the mock community??? 
-That all 8 ASVs in the mock exactly match 8 of 9 in the reference file. 
+*What can we conclude about the mock community???*
+
+That all 8 ASVs in the mock exactly match the 8 in the reference file. This is great! :) 
+
+<span style="color: red;">INTERPRETATION #3: Did your dataset have a mock community? If so, what can you say about the accuracy of your sequencing run?</span>
+
 
 ## Remove the mock community and it's ASVs
 
@@ -303,7 +465,38 @@ stopifnot(num_ASVs_mock == 8)
 ```
 
 
-# Reverse Complements 
+# 5. Reverse Complements 
+
+## What is a reverse complement? 
+
+DNA is double-stranded, and each strand is made up of complementary bases: A pairs with T and C pairs with G. So, the reverse complement of a DNA sequence is what you would get if you: 1.	Reverse the sequence (read it backward) or,	2.	Replace each base with its complement.
+
+Let's take an example of the DNA sequence: 5'-ATGC-3'
+→ *Reverse*: CGTA
+→ *Complement*: GCAT
+→ *Reverse complement*: GCAT
+
+## Why are reverse complements in my dataset? 
+
+During PCR amplification, sequencing, or bioinformatics processing, it’s possible that some sequences get read in the reverse orientation, are assigned to the wrong strand, or are present as both the forward and reverse complement versions in your dataset. This is especially common when using non-strand-specific sequencing protocols, the pipeline doesn’t enforce consistent orientation, or working with merged paired-end reads and haven’t filtered by orientation yet.
+
+If you don’t check for reverse complements, you may accidentally treat identical sequences (just read in opposite directions) as different ASVs or OTUs. This can:
+
+- Inflate your diversity estimates (counts two taxa when reality there is just one).
+- Split read counts, reducing the apparent abundance of that ASV,
+- Complicate taxonomic assignments, since tools may give different results depending on strand orientation.
+
+## How to identify reverse complements? 
+
+- You can search your ASV or OTU table for reverse complement matches.
+- If two sequences are reverse complements of each other, you can merge them and recalculate abundances.
+- Tools like VSEARCH, USEARCH, or even custom scripts in R or Python can help identify reverse complements.
+- Some pipelines (like DADA2) handle this automatically if you process all reads with the same orientation. This can be done in the `filterAndTrim()` step by using the `orient.fwd` parameter. But if you merge reads from multiple sources, it’s worth checking.
+
+Reverse complements can show up in your dataset when identical sequences are read or processed in opposite orientations. If not accounted for, they can artificially inflate diversity and confuse your analyses. By searching for and collapsing reverse complements, you ensure that your 16S data is more accurate and biologically meaningful. 
+
+So, here we will manually search for reverse complements in the dataset since we forgot to use the `orient.fwd` parameter in our `filterAndTrim()` step. And, it's always good to double check, even if we did! 
+
 
 ```{r reverse-complements}
 # Pull out Taxa Table
@@ -342,10 +535,48 @@ for(i in 1:length(asv_seqs)){ # For each asv sequence...
 cat("For", sum(asv_rev_comp) / 2,"ASVs, the reverse complement will need to be removed") 
 ```
 
+<span style="color: red;">INTERPRETATION #4: Do you have any reverse complements in your dataset? </span> 
 
-# Evaluate the Sequencing Depth 
 
-```{r seq-depth}
+# 6. Sequencing Depth 
+
+Sequencing depth (also known as the library size of a sample) is the number of reads per sample. It affects how well we can detect and compare microbes between samples. Normalizing for sequencing depth is essential for fair and accurate analysis in microbial studies. 
+
+At first glance, you might expect that different types of samples—like soil, water, or gut—would naturally have different sequencing depths. After all, they have different microbial loads, right? But in practice, sequencing depth is more about the lab and sequencing process than the biology of the sample itself.
+
+Remember that: 
+
+- **Sequencing depth reflects how many reads are returned—not microbial biomass**
+    - Sequencing depth is the number of reads assigned to a sample after sequencing—not the number of microbes present.
+    - Two samples (*e.g.,* one from soil, one from water) can end up with the same number of reads, even if one has far more microbial biomass than the other.
+    - This is because library preparation, PCR efficiency, and pooling determine how many reads each sample gets—not the sample’s biology.
+- **Sequencing depth is ifluenced by gechnical factors**
+    - *DNA extraction efficiency*: Some samples (*e.g.,* soil) are harder to extract DNA from, but if extraction is successful, the sequencing depth can still be high.
+    - *PCR amplification*: Some samples amplify better than others due to inhibitors or DNA quality, but PCR bias can equalize or distort actual abundance.
+    - *Pooling strategy*: When libraries are pooled before sequencing, each sample is assigned a roughly equal proportion of reads, regardless of the sample type.
+    - *Demultiplexing* errors or sequencing bias can also affect how many reads are recovered per sample.
+- **Sequencing depth is not a measure of microbial diversity or complexity**
+    - A complex community (*e.g.,* soil) and a simple one (*e.g.,* a mock community) can both be sequenced to the same depth.
+    - You may need higher sequencing depth to capture rare taxa in complex communities, but the sequencer won’t automatically give you that—it just sequences what’s there in the library.
+    
+## Why does sequencing depth matter?
+
+- Higher depth = better detection of rare microbes.
+- Too low depth may miss important community members and give unreliable diversity estimates.
+- Uneven depth across samples can bias comparisons between microbial communities.
+
+## How to deal with unequal sequencing depth? 
+
+We often normalize for sequencing depth before comparing samples using methods like:
+
+- *Rarefaction*: Subsampling many times (typically 1,000 times) to an even depth.
+- *Scaling*: Transform sample counts by multiplying by the ASV count by the minimum library size in the dataset.  
+- *Proportional normalization*: Converting to relative abundance (all ASV values within a sample add up to 1). 
+- *Statistical modeling*: DESeq2, which accounts for depth.
+
+Let's take a look! 
+
+```{r seq-depth, fig.height=3, fig.width=8}
 # The current data object
 noControlsMock_ChlorosMitos_physeq
 
@@ -379,27 +610,45 @@ seqSums_df %>%
   head()
 
 # plot it as a bar plot 
-seqSums_df %>%
+numSeq_bar_plot <- 
+  seqSums_df %>%
   ggplot(aes(x=reorder(names, TotalSeqs), y = TotalSeqs,
              fill = station)) + 
   geom_bar(stat = "identity") + 
   theme(axis.text.x = element_blank()) + 
-  labs(y = "Read Depth", x = "Sample")
+  labs(y = "Read Depth", x = "Sample") + 
+  theme(legend.position = "none")
 
 # histogram
-seqSums_df %>%
+numSeq_hist_plot <- 
+  seqSums_df %>%
   ggplot(aes(x= TotalSeqs, fill = station)) + 
   geom_histogram(color = "black") + 
-  labs(y = "# of Samples", x = "Read Depth")
+  labs(y = "# of Samples", x = "Read Depth") + 
+  theme(legend.position = "bottom")
 
 # Density plot 
-seqSums_df %>%
+numSeq_density_plot <- 
+  seqSums_df %>%
   ggplot(aes(TotalSeqs, fill = station)) +
   geom_density(alpha = 0.5) + 
-  labs(x = "Read Depth")
+  labs(x = "Read Depth") + 
+  theme(legend.position = "none")
+
+# Put it all together 
+numSeq_bar_plot + numSeq_hist_plot + numSeq_density_plot + 
+  plot_annotation(tag_levels = "A") 
 ```
 
-# Remove samples with few reads 
+<span style="color: red;">INTERPRETATION #5: What can you conclude about your sequencing depths? What are your sample distributions? Do you have "enough" reads? Are there any samples that should be removed at this step?</span>
+
+
+## Remove samples with few reads 
+
+If you find any samples that should obviously be removed at this step, you can follow the code below for your samples. However, if your samples have some but not many reads—like 1000 counts-it is worthwhile to keep those samples in your dataset and remove them later, especially if they are very important! 
+
+You can watch this video by [Dr. Pat Schloss](https://riffomonas.org/code_club/2022-04-07-sampling-depth), which talks about how to find the best sampling depth for rarefaction to give you some idea. 
+
 
 ```{r rm-samps}
 # What's the min seq depth? 
@@ -420,11 +669,11 @@ seqSums_df %>%
   arrange(TotalSeqs)
 ```
 
-# Save Preprocessed Phyloseq Object
+# 7. Add some metadata
 
-## Add some metadata
+***Likely, you do not need to do this step as you already have the data in your metadata! If so, you can skip this step. That is because this step is unique to the in class dataset that we are working with and will be used for visualization purposes for statistical testing later.***
 
-We will add: 
+Here, we will make a continuous value into a discrete value for plotting purposes later. We will add: 
 
 1. A discrete column called `salinity_group` that is made from the continuous data as indicated below. 
 2. The Sequencing Depth of each sample
@@ -496,7 +745,10 @@ colnames(data.frame(sample_data(preprocessed_physeq)))
 head(num_seqs_df)
 ```
 
-## Finally, save the phyloseq object
+# 8. Write out the data 
+
+Finally, let's save our phyloseq object, which we will use for the next step! 
+
 ```{r save-physeq}
 # Please be sure to use the correct path to the appropriate directory in your file system
 save(preprocessed_physeq, file = "data/Lecture/03_PreProcessing_Lecture/preprocessed_phyloseq.RData")
