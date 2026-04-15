@@ -647,8 +647,9 @@ On the left, we can see that ***only*** the richness of the lowest and highest s
 <span style="color: red;">INTERPRETATION #3:  How did you statistically test your scientific question in Interpretation #2? Why?</span>
 
 
-# Continuous Relationships - Salinity (PSU) vs Biodiversity
+# Continuous Relationships 
 
+Here, we will test the continuous variable salinity (PSU) versus Biodiversity measures
 
 ## Spearman vs. Linear Model: What’s the Difference?
 

@@ -1,0 +1,32 @@
+---
+title: "Beta-Diversity"
+author: "Mar Schmidt"
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# Inputs 
+
+- preprocessed_physeq: asv count table, metadata, taxonomy
+
+# Outputs 
+
+- Visualize data in Ordinations (PCoA or NMDS)
+- Calculate Stats (PERMONVA and betadisper)
+
+# Load data & Packages
+```{r load-data-packages}
+pacman::p_load(tidyverse, phyloseq, patchwork, vegan, 
+               install = FALSE)
+
+# Load colors and shapes 
+source("code/colors_and_shapes.R")
+
+# Load functions.R
+source("code/functions.R")
+```
+
+
+
