@@ -26,6 +26,98 @@ source("code/colors_and_shapes.R")
 
 # Load functions.R
 source("code/functions.R")
+
+# Load Phyloseq Data 
+load("data/03_PreProcessing/preprocessed_phyloseq.RData")
+# Look at the data
+preprocessed_physeq
+```
+
+# Explore the data 
+
+```{r sample-sums}
+min(sample_sums(preprocessed_physeq))
+
+# Remove sample with the smallest number of reads
+## NOTE: DATASET SPECIFIC! Please discern based on your own data's results 
+preprocessed_physeq <- 
+  preprocessed_physeq %>%
+  subset_samples(names != "20210615-MA-ABB2F") %>%
+  prune_taxa(taxa_sums(.) > 0, .)
+
+# Inspect the data again
+View(data.frame(sample_sums(preprocessed_physeq)))
+```
+
+
+# Scale Reads 
+
+```{r scale-reads}
+scaled_physeq <- 
+  preprocessed_physeq %>%
+  scale_reads(round = "matround")
+
+# Inspect the output 
+scaled_physeq
+
+# Inspect the ASV counts 
+#View(data.frame(otu_table(scaled_physeq)))
+```
+
+# Calculate Beta Diversity 
+
+## Bray-Curtis 
+
+```{r calc-bray}
+## Bray-Curtis dissimarity 
+scaled_bray_dist <- 
+  phyloseq::distance(scaled_physeq,
+                   method = "bray", binary = FALSE)
+
+# Take a look 
+class(scaled_bray_dist)
+```
+
+## PCoA
+
+```{r pcoa}
+scaled_bray_pcoa <- 
+  ordinate(physeq = scaled_physeq,
+         method = "PCoA",
+         distance = "bray", binary = FALSE)
+
+# Inspect the data 
+class(scaled_bray_dist)
+
+# Plot PCoA 
+plot_ordination(physeq = scaled_physeq, 
+                ordination = scaled_bray_pcoa,
+                color = "salinity_group",
+                shape = "date",
+                title = "Bray-Curtis PCoA") + 
+  scale_color_manual(values = salinity_colors) + 
+  scale_shape_manual(values = date_shapes) + 
+  geom_point(size = 4, alpha = 0.5, aes(color = salinity_group)) + 
+  theme_bw()
+
+```
+
+# Statistical Testing 
+
+## PERMANOVA 
+
+```{r stats}
+## PERMANOVA 
+adonis2(scaled_bray_dist ~ salinity_group + date, 
+        data = data.frame(sample_data(scaled_physeq)), 
+        by = "terms")
+
+## BETADISPER
+### Test dispersion/variances within groups
+dispr_bray_salgroup <- betadisper(scaled_bray_dist, 
+                                  data.frame(sample_data(scaled_physeq))$salinity_group)
+
+permutest(dispr_bray_salgroup)
 ```
 
 
