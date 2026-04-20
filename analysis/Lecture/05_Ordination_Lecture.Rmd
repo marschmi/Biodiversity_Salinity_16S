@@ -175,7 +175,7 @@ rawSeq_histogram + rawSeq_vs_numASV_plot +
   plot_annotation(tag_levels = "A")
 ```
 
-<span style="color: red;">INTERPRETATION #2:  Evaluate the raw read count plots above. What did you scale the read counts to in your dataset? Why did you choose that number? Do you think it is sufficient to perform a beta-diversity analysis and accurately compare your data to one another?</span>
+<span style="color: red;">INTERPRETATION #2:  Evaluate the raw read count plots above. What did you scale the read counts to in your dataset? Why did you choose that number? What are the potential consequences of this scaling decision for your downstream beta-diversity comparisons?</span>
 
 # 3. Scale Read Counts 
 
@@ -247,7 +247,7 @@ scaledSeq_histogram + scaledSeq_vs_numASV_plot +
   plot_annotation(tag_levels = "A")
 ```
 
-<span style="color: red;">INTERPRETATION #3:  Evaluate the scaled read count plots above. Are the total number of sequences across all of your samples in the same general range? What is the minimum and maximum (i.e., the range) of the sequencing depth? How was the relationship with the number of ASVs modified after scaling the read counts?</span>
+<span style="color: red;">INTERPRETATION #3:  Evaluate the scaled read count plots above. Are the total number of sequences across all of your samples in the same general range? What is the minimum and maximum (i.e., the range) of the sequencing depth? What does this tell you about the relationship between sequencing depth and the observed number of ASVs?</span>
 
 # Beta Diversity: Dissimilarity Metrics in Microbial Ecology
 
@@ -549,7 +549,7 @@ In NMDS, the **stress value** is a key metric that quantifies how well the lower
 
 *Okay, let's draw some NMDS plots!*
 
-```{r soren-nmds}
+```{r nmds-plots, fig.height=3.5, fig.width=7}
 ## SORENSEN 
 scaled_soren_nmds <- 
   ordinate(physeq = scaled_physeq,
@@ -596,7 +596,7 @@ sorensen_nmds_plot + bray_nmds_plot +
 ```
 
 
-<span style="color: red;">INTERPRETATION #6: Plot your data using NMDS. Interpret what you can conclude from the NMDS.</span>
+<span style="color: red;">INTERPRETATION #6: Plot your data using NMDS and interpret the results. How does the NMDS compare to the PCoA you generated in Interpretation #5? Do the two ordination methods tell a consistent story, or do you notice any differences in how the samples are arranged? Make sure to report the stress value and comment on whether it is acceptable.</span>
 
 
 ## All ordinations together!
@@ -608,13 +608,7 @@ sorensen_nmds_plot + bray_nmds_plot +
   plot_annotation(tag_levels = "A")
 ```
 
-<span style="color: red;">INTERPRETATION #7: Plot both the PCoA and NMDS together. Which of the two visualizations work best for your data? Explain your reasoning.</span>
-
-# Now what? 
-
-Based on the results above, which metric would you use to write up your paper: Sorensen or Bray-Curtis? 
-
-
+<span style="color: red;">INTERPRETATION #7: Plot both the PCoA and NMDS together. Which of the two ordination methods best represents your data and why? Consider the strengths and limitations of each method. For example, the variance explained by each PCoA axis versus the stress value of the NMDS could be used to justify your choice. Do both methods support the same biological conclusions?</span>
 
 
 # 6. Multivariate Statistics
@@ -631,7 +625,7 @@ To run PERMANOVA, we will first compute a dissimilarity matrix between all pairs
 
 However, PERMANOVA is **sensitive to differences in within-group dispersion** (*i.e.,* variability). If one group is much more variable than another, PERMANOVA might detect a significant result even if the centroids aren't truly different. Because of this, it's good practice to also run a **test for homogeneity of dispersion** (*e.g.,* `betadisper` in R) to check that group variances are comparable, which we will do next!
 
-## Key Parameters in `adonis2()`
+**Key Parameters in `adonis2()`**
 
 - `strata`: Use strata to restrict permutations within groups, which is critical for paired or repeated measures designs. This would be a column in the `metadata_df`.
     - example: `strata = metadata_df$Sample_Names`
@@ -641,7 +635,7 @@ However, PERMANOVA is **sensitive to differences in within-group dispersion** (*
     - `by = "none"`: tests only the full model.
 - `parallel`: Runs permutations using multiple CPU cores. This is helpful for large datasets or when using a large number of permutations.
 
-### Summary Table of Useful `adonis2()` Parameters
+**Summary Table of Useful `adonis2()` Parameters**
 
 | Parameter      | Purpose                                           | When to Use                                                   |
 |----------------|---------------------------------------------------|----------------------------------------------------------------|
@@ -652,13 +646,17 @@ However, PERMANOVA is **sensitive to differences in within-group dispersion** (*
 | `sqrt.dist`    | Apply square-root transformation to distances     | Rarely needed; used in specific workflows                      |
 | `parallel`     | Run permutations using multiple CPU cores         | Speeds up large analyses with many permutations                |
 
-## Categorical & Continuous Variables in PERMANOVA
+**Categorical & Continuous Variables in PERMANOVA**
 
 `adonis2()` can also be run on continuous variables — and it’s actually a powerful way to test whether variation in microbial community composition is associated with continuous environmental or biological gradients (*e.g.,* pH, temperature, nutrient concentration, latitude, host age, etc.). In `adonis2()`, continuous variables are treated as predictors in a linear model-like framework. The test evaluates whether changes in the continuous variable are significantly associated with shifts in microbial community composition (as measured by your distance matrix).
 
-For now, we will focus on comparing the Sorensen and the Bray-Curtis. More on UniFrac soon! 
+For now, we will focus on comparing the Sorensen and the Bray-Curtis.  
 
-### Sorensen
+### 6a-I. Categorical Variables
+
+Here, we will focus on the categorical data of salinity group to test the hypothesis. Below, we will focus on Continuous variables.
+
+#### Sorensen
 
 ```{r PERMANOVA-categorical-sorensen}
 # Sorensen
@@ -670,14 +668,10 @@ sorensen_salGroup_adonis_terms1
 # Check the order of the terms
 sorensen_salGroup_adonis_terms2 <- adonis2(scaled_sorensen_dist ~ date * salinity_group, data = metadata_df, by = "terms")
 sorensen_salGroup_adonis_terms2
-
-## 2. Run with by = "margin" for marginal p-values, which we can compare to the residuals from the first one. 
-sorensen_salGroup_adonis_margin <- adonis2(scaled_sorensen_dist ~ date * salinity_group, data = metadata_df, by = "margin")
-sorensen_salGroup_adonis_margin
 ```
 
 
-### Understanding PERMANOVA output: 
+**Understanding PERMANOVA output:**
 
 - **Pr(>F) Interpretation:** The p-value. Is it "*significant*"?  
     - This represents the "*probability of observing an F-statistic this extreme (or more extreme), assuming the null hypothesis is true.*" In essence, this is the **p-value** from the permutation test. This value tells us whether the variance explained by a variable (or interaction) is significantly greater than expected by chance.
@@ -690,17 +684,18 @@ sorensen_salGroup_adonis_margin
 - **F-statistic Interpretation:** How strongly a variable separates groups, relative to residuals. 
     - Higher F-values tell us that there is stronger separation of groups. he F-statistic is a ratio of explained to unexplained variation, adjusted for degrees of freedom — similar to traditional ANOVA, but applied to a distance matrix (like Bray-Curtis, Jaccard, *etc.*). It tells you how much more variation is explained by the model (with your term included) compared to the residual (unexplained) variation.
 
-### Interpreting PERMANOVA
+***Interpreting PERMANOVA with Sorensen Dissimilarity:***
 
 So, as it applies to the Sorensen Dissimilarity, we can already draw a few conclusions about our data! We can state that: 
 
 1. **Salinity group** is the strongest factor, explaining ~`r round(sorensen_salGroup_adonis_terms1$R2[1]*100, digits = 0)`% of the variation in microbial community composition, which is statistically significant based on the p-value of <`r sorensen_salGroup_adonis_terms1$"Pr(>F)"[1]`. This suggests `salinity_group` plays a major role in structuring the community.
 2. **Date** also contributes significantly (~`r round(sorensen_salGroup_adonis_terms1$R2[2]*100, digits = 0)`% of variation, with a p-value of <`r sorensen_salGroup_adonis_terms1$"Pr(>F)"[2]`), indicating meaningful temporal shifts in community composition across the sampling window.
 3.	The **interaction between salinity group and date** explains an additional ~`r round(sorensen_salGroup_adonis_terms1$R2[3]*100, digits = 0)`% of the variation, with a significant pvalue of <`r sorensen_salGroup_adonis_terms1$"Pr(>F)"[3]`, meaning the effect of time varies across locations — i.e., community change over time is not uniform across stations.
-4. Finally, the total residiuals of the model is ~`r round(sorensen_salGroup_adonis_terms1$R2[4]*100, digits = 0)`% of the variation remains unexplained by these variables, which is typical in complex environmental microbiome datasets.
+4. The total residiuals of the model is ~`r round(sorensen_salGroup_adonis_terms1$R2[4]*100, digits = 0)`% of the variation remains unexplained by these variables, which is typical in complex environmental microbiome datasets.
+5. Based on the **pseudo-F statistics**, salinity group separates the groups roughly 2x more than date, and roughly 4x more than the interaction between salinity group and date. 
 
 
-#### Biological takeaway:
+**Biological takeaway for Sorensen Dissimilarity:**
 
 Both spatial (salinity group) and temporal (date) gradients independently and interactively shape microbial beta diversity in this dataset based off of shared presence/absence of ASVs as it relates to the Sorensen dissimilarity. The strong interaction effect suggests that environmental dynamics (*e.g.,* changes in salinity, temperature, or nutrient pulses) may not be synchronous or homogeneous across the lake, leading to localized temporal patterns in community structure.
 
@@ -708,32 +703,7 @@ That said, the residuals of the model are ~`r round(sorensen_salGroup_adonis_ter
 
 **Therefore, we will need to explore the role that abundance plays in shaping microbial community composition using the Bray-Curtis Dissimilarity.**
 
-### PERMANOVA: Continuous variable with Salinity 
-
-```{r PERMANOVA-sorensen-salinity}
-## Now, let's add a continuous variable. 
-sorensen_salinity_adonis_terms1 <- adonis2(scaled_sorensen_dist ~ date * salinity_psu, data = metadata_df, by = "terms")
-sorensen_salinity_adonis_terms1
-
-# Check different order 
-sorensen_salinity_adonis_terms2 <- adonis2(scaled_sorensen_dist ~ salinity_psu * date, data = metadata_df, by = "terms")
-sorensen_salinity_adonis_terms2
-```
-
-
-**In the first model** where `salinity_psu` is the final term, `salinity_psu` explains only 2.6% of the variation in community composition after accounting for station and date. Importantly, it is statistically significant (p < 0.001), so `salinity_psu` has an independent effect. *But in this model, salinity is tested after station and date, so its effect is adjusted for their contributions.*
-
-**In the second model** `salinity_psu` now explains 13.7% of the variation, which is much higher! Still `salinity_psu` is highly significant, indicating a strong association between salinity and community structure. Here, salinity is tested first, so it “gets credit” for shared variance with station and also date. 
-
-These two models together show that: 
-
-1. Salinity is clearly important (significant in both models).
-2. It likely co-varies with station and date—which makes sense in environmental data (e.g., some stations are more saline, or salinity shifts over time).
-3. When interpreting effect size, contextualize the model structure:
-    a. *Model 1:* salinity’s unique contribution
-    b. *Model 2:* salinity’s overall contribution, overlapping with other factors. 
-
-### Bray-Curtis
+#### Bray-Curtis
 
 ```{r PERMANOVA-categorical-bray}
 # Bray-Curtis
@@ -743,77 +713,105 @@ bray_salGroup_adonis_terms1
 
 bray_salGroup_adonis_terms2 <- adonis2(scaled_bray_dist ~ date * salinity_group, data = metadata_df, by = "terms")
 bray_salGroup_adonis_terms2
-
-
-## 2. Run with by = "margin" for marginal p-values
-bray_salGroup_adonis_margin <- adonis2(scaled_bray_dist ~ date * salinity_group, data = metadata_df, by = "margin")
-bray_salGroup_adonis_margin
 ```
 
-#### Interpreting PERMANOVA
+**Interpreting PERMANOVA with Bray-Curtis Dissimilarity:**
 
-So, as it applies to the Sorensen Dissimilarity, we can already draw a few conclusions about our data! We can state that: 
+Similarly, as it applies to the Sorensen Dissimilarity, we can already draw a few conclusions about our Bray-Curtis data! We can state that: 
 
-1. **Station** is the strongest factor, explaining ~`r round(bray_salGroup_adonis_terms1$R2[1]*100, digits = 0)`% of the variation in microbial community composition, which is statistically significant based on the p-value of <`r bray_salGroup_adonis_terms1$"Pr(>F)"[1]`. This suggests spatial differences among stations play a major role in structuring the community.
-2. **Date** also contributes significantly (~`r round(bray_salGroup_adonis_terms1$R2[2]*100, digits = 0)`% of variation, with a p-value of <`r bray_salGroup_adonis_terms1$"Pr(>F)"[2]`), indicating meaningful temporal shifts in community composition across the sampling window.
-3.	The **interaction between station and date** explains an additional ~`r round(bray_salGroup_adonis_terms1$R2[3]*100, digits = 0)`% of the variation, with a significant pvalue of <`r bray_salGroup_adonis_terms1$"Pr(>F)"[3]`, meaning the effect of time varies across locations — i.e., community change over time is not uniform across stations.
-4. Finally, the total residiuals of the model is ~`r round(bray_salGroup_adonis_terms1$R2[4]*100, digits = 0)`% of the variation remains unexplained by these variables, which is typical in complex environmental microbiome datasets.
+1. **Salinity group** is the strongest factor, explaining ~`r round(bray_salGroup_adonis_terms1$R2[1]*100, digits = 0)`% of the variation in microbial community composition, which is statistically significant based on the p-value of <`r bray_salGroup_adonis_terms1$"Pr(>F)"[1]`. This is notably higher than what was observed with Sorensen dissimilarity (~`r round(sorensen_salGroup_adonis_terms1$R2[1]*100, digits = 0)`%), suggesting that abundance differences across salinity groups are even more pronounced than presence/absence patterns alone.
+2. **Date** also contributes significantly (~`r round(bray_salGroup_adonis_terms1$R2[2]*100, digits = 0)`% of variation, with a p-value of <`r bray_salGroup_adonis_terms1$"Pr(>F)"[2]`), indicating meaningful temporal shifts in dominant members of the community across the sampling window.
+3.	The **interaction between station and date** explains an additional ~`r round(bray_salGroup_adonis_terms1$R2[3]*100, digits = 0)`% of the variation, with a significant pvalue of <`r bray_salGroup_adonis_terms1$"Pr(>F)"[3]`, meaning the effect of time varies across salinity groups (*i.e.,* community change in the abundance of members over time is not uniform across salinity conditions).
+4. The total residiuals of the model is ~`r round(bray_salGroup_adonis_terms1$R2[4]*100, digits = 0)`% of the variation remains unexplained by these variables, which is lower than in the Sorensen model (~61%), suggesting Bray-Curtis captures more of the ecologically meaningful structure in this dataset.
+5. Finally, the **Pseudo-F values** are illuminating as they indicate that salinity group is roughly 3x more important in separating the groups than date and roughly 6x the interaction of salinity group and date. This is a pattern consistent with what was observed in the Sorensen model.
 
 ### Comparing Sorensen & Bray Curtis Results 
 
-- Both models reveal strong spatial and temporal structuring of microbial communities, with significant interactions.
+- Both models reveal strong salinity group and temporal (date) structuring of microbial communities, with significant interactions.
 - The Bray-Curtis model explains ~10% more total variation, suggesting that abundance patterns (not just presence/absence) capture additional ecological structure.
-- The higher R^2^ for station in Bray-Curtis (~`r round(bray_salGroup_adonis_terms1$R2[1]*100, digits = 0)`% vs. ~`r round(sorensen_salGroup_adonis_terms1$R2[1]*100, digits = 0)`%) indicates that abundance shifts across space are even more pronounced than presence/absence alone would suggest.
+- The higher R^2^ for salinity group in Bray-Curtis (~`r round(bray_salGroup_adonis_terms1$R2[1]*100, digits = 0)`% vs. ~`r round(sorensen_salGroup_adonis_terms1$R2[1]*100, digits = 0)`%) indicates that abundance shifts in across salinity gradients are even more pronounced than presence/absence alone would suggest.
 - Residual variation is lower in Bray-Curtis, further supporting its added sensitivity to ecologically meaningful abundance patterns.
+- The separation between groups (pseudo-F value) is much more pronounced when incorporating abundance information via Bray-Curtis dissimilarity, reflecting stronger signal from dominant taxa.
 
 *In other words:* 
 
-Community composition is strongly influenced by station and date in both models, but the Bray-Curtis model (abundance-based) explains more variation overall — especially for station effects. This suggests that abundance shifts, not just species turnover, play a major role in structuring microbial communities in this system over space and time.
+Community composition is strongly influenced by `salinity_group` and `date` in both models, but the Bray-Curtis model (abundance-based) explains more variation overall, especially for `salinity_group` effects. This suggests that abundance shifts, not just species turnover, play a major role in structuring microbial communities across salinity gradients and through time in this system.
+
+
+## 6a-II: Continuous Variables
+
+Now, we will evaluate the same question using the continuous value of salinity in practical salinity units or PSU. 
+
+```{r PERMANOVA-sorensen-salinity}
+## Now, let's add a continuous variable. 
+sorensen_salinity_adonis_terms1 <- adonis2(scaled_sorensen_dist ~ salinity_psu * date, data = metadata_df, by = "terms")
+sorensen_salinity_adonis_terms1
+
+# Check different order 
+sorensen_salinity_adonis_terms2 <- adonis2(scaled_sorensen_dist ~ date * salinity_psu, data = metadata_df, by = "terms")
+sorensen_salinity_adonis_terms2
+```
+
+
+**In the first model** where `salinity_psu` is the first term, `salinity_psu` explains ~17% of the variation in community composition in rare and dominant taxa before accounting for date. Importantly, it is statistically significant (p < 0.001), so `salinity_psu` has an independent effect. *In this model, salinity is tested before date, so its effect is NOT adjusted for date contributions.*
+
+**In the second model** `salinity_psu` still explains ~17% of the variation in rare and dominant taxa community composition, which is important! This means that `salinity_psu` is highly significant regardless of term order, indicating a strong association between salinity and community structure. *Here, salinity is tested after date, so it "gets credit" only for variance not already explained by date.*
+
+These two models together show that:
+
+1. Salinity is clearly important (significant in both models).
+2. The R^2^ values are nearly identical (~17%) regardless of term order, suggesting salinity and date explain largely independent variance -- they do not strongly co-vary in this dataset.
+3. When interpreting effect size, contextualize the model structure:
+    a. *Model 1:* salinity's overall contribution, before accounting for date.
+    b. *Model 2:* salinity's unique contribution after date variance is removed. 
+
+**The key insight here is that because the R^2^ for salinity barely changes between models (~17.2% vs ~17.6%), salinity is capturing something genuinely distinct from date in structuring these communities.**
+
 
 ### PERMANOVA: Continuous variable with Salinity 
 
 ```{r PERMANOVA-bray-salinity}
 ## Now, let's add a continuous variable. 
-bray_salinity_adonis_terms1 <- adonis2(scaled_bray_dist ~ station * date * salinity_psu, data = metadata_df, by = "terms")
+bray_salinity_adonis_terms1 <- adonis2(scaled_bray_dist ~ salinity_psu * date, data = metadata_df, by = "terms")
 bray_salinity_adonis_terms1
 
 # Check different order 
-bray_salinity_adonis_terms2 <- adonis2(scaled_bray_dist ~ salinity_psu * station * date, data = metadata_df, by = "terms")
-sorensen_salinity_adonis_terms2
+bray_salinity_adonis_terms2 <- adonis2(scaled_bray_dist ~ date * salinity_psu, data = metadata_df, by = "terms")
+bray_salinity_adonis_terms2
 ```
 
 
-**In the first model** where `salinity_psu` is the final term, `salinity_psu` explains only 3.2% of the variation in community composition after accounting for station and date, which was similar to the Sorensen results. Importantly, it is statistically significant (p < 0.001), so `salinity_psu` has an independent effect. *But in this model, salinity is tested after station and date, so its effect is adjusted for their contributions.*
+**In the first model** where `salinity_psu` is the first term, `salinity_psu` explains ~23% of the variation in community composition in dominant taxa before accounting for date -- notably higher than the Sorensen result (~17%). Importantly, it is statistically significant (p < 0.001), so salinity_psu has an independent effect. *In this model, salinity is tested before date, so its effect is NOT adjusted for date contributions.*
 
-**In the second model** `salinity_psu` now explains ~17% of the variation, which is much higher and a similar result to the Soresen PERMANOVA! Still `salinity_psu` is highly significant, indicating a strong association between salinity and community structure. Here, salinity is tested first, so it “gets credit” for shared variance with station and also date. 
+**In the second model** `salinity_psu` still explains ~23% of the variation in dominant taxa community composition, which is again nearly identical to the first model -- and consistent with the pattern we saw in the Sorensen results. `salinity_psu` remains highly significant, indicating a strong and robust association between salinity and community structure regardless of term order. *Here, salinity is tested after date, so it "gets credit" only for variance not already explained by date.*
 
-These two models together show that: 
+These two models together show that:
 
-1. Salinity is clearly important (significant in both models).
-2. It likely co-varies with station and date—which makes sense in environmental data (e.g., some stations are more saline, or salinity shifts over time).
-3. When interpreting effect size, contextualize the model structure:
-    a. *Model 1:* salinity’s unique contribution
-    b. *Model 2:* salinity’s overall contribution, overlapping with other factors. 
+1. Salinity is clearly important (significant in both models) and explains more variation in Bray-Curtis (~23%) than in Sorensen (~17%), suggesting that salinity structures not just which taxa are present, but also their relative abundances.
+2. The stability of the R^2^ across both term orders suggests that salinity and date explain largely independent variance -- consistent with what we observed in the Sorensen models.
+When interpreting the pseudo-F value, contextualize the model structure:
+a. *Model 1:* salinity's overall contribution, before accounting for date
+b. *Model 2:* salinity's unique contribution after date variance is removed
 
+The key insight here is that the Bray-Curtis model reinforces and strengthens the Sorensen findings: ***salinity and date are explaining largely independent variance in the community composition. They are not strongly co-varying with each other, so swapping the order doesn't "steal" explanatory power from either variable***. This is actually a really clean and satisfying result! It means we can confidently state that both salinity AND date are independently and robustly driving community composition in this system, and neither one is just a proxy for the other. The story holds up no matter how you look at it. :) 
 
-## Salinity's role in Community Composition
+# Salinity's role in Community Composition
 
 ### Interpretation: What Does Salinity Mean Across Metrics?
 
-1.	Significant across both distance types, salinity consistently affects community composition!
-2.	Slightly higher R^2^ in Bray-Curtis indicates that salinity influences abundance patterns more than just the presence/absence measured by the Sorensen dissimilarity.
-3.	Effect size changes depending on term order:
-    - When entered first (Model 2): salinity explains more variance, capturing shared effects with station/date.
-    - When entered last (Model 1): salinity explains a smaller, unique portion of variation.
-4.	In Bray-Curtis, there’s also a significant salinity × date interaction, suggesting temporal variation in salinity’s effect on abundance (e.g., a stronger or weaker effect depending on the sampling time).
+1. Significant across both distance types, salinity consistently and robustly affects community composition regardless of term order!
+2. The R^2^ is slightly higher in Bray-Curtis (~23%) compared to Sorensen (~17%), indicating that salinity influences abundance patterns of dominant taxa more than just the presence/absence of rare and dominant taxa measured by Sorensen dissimilarity.
+3. The R^2^ is remarkably stable regardless of term order in both metrics -- barely changing whether salinity is entered first or last. This tells us that salinity and date are explaining largely independent variance and are not strongly co-varying with each other. You can confidently state that salinity is a robust, independent driver of community composition in this system. The stable Pseudo-F values further support this conclusion by showing that the between-group separation is consistent regardless of which variable is entered first.
+4. The Pseudo-F for salinity (~35-36 in Bray-Curtis vs. ~23-24 in Sorensen) is consistently much higher than for date (~8-9 in both), confirming that salinity produces stronger between-group separation than date across both presence/absence and abundance-based metrics.
+5. A significant salinity x date interaction in both metrics suggests that the effect of salinity on community composition is not static through time. Rather, the strength or nature of salinity's influence shifts depending on the sampling period, which makes ecological sense in a dynamic estuarine or coastal system.
 
+Therefore, salinity is a major environmental driver in this system. We can accept the hypothesis!
 
-Therefore, salinity is a major environmental driver in this system! Therefore, we can accept our hypothesis at the beginning of this file. :) Salinity's effect is robust across distance metrics (presence/absence and abundance). And, some of its influence may be shared with spatial (station) and temporal (date) structure, so term order matters. Finally, in Bray-Curtis, salinity not only affects who is present, but also how abundant they are—and its influence changes over time. 
+Salinity's effect is robust across both distance metrics (presence/absence and abundance), with a consistently high R^2^ and Pseudo-F regardless of term order. Importantly, because the R^2^ barely changes between models, salinity and date are capturing largely independent variance, meaning term order does not meaningfully alter the conclusions here. Finally, the higher R^2^ in Bray-Curtis compared to Sorensen tells us that salinity not only structures which taxa are present, but also shapes their relative abundances, and the significant salinity x date interaction reminds us that this influence is not static, but shifts across the sampling period in ways that reflect the dynamic nature of this system!
 
 *HOWEVER, there are caveats to these conclusions... let's take a look at variance!*
 
-
-<span style="color: red;">INTERPRETATION #8: Using the above example to guide you, run the appropriate PERMANOVA for your scientific question and interpret the results. What biological conclusion can you draw from your PERMANOVA results?</span>
+<span style="color: red;">INTERPRETATION #8: Using the above example to guide you, run the appropriate PERMANOVA for your scientific question and interpret the results. Make sure to run your model in at least two different term orders and comment on whether the R-squared value changes between models. If so, what does this tell you about whether your variables are independent of one another or co-varying? What biological conclusion can you draw from your PERMANOVA results, and do you accept or reject your hypothesis?</span>
 
 
 # 6b. Betadisper: Testing Variances/Dispersions
@@ -853,20 +851,20 @@ The result from `permutest()` is a robust non-parametric p-value testing whether
 | `betadisper()` | Computes within-group distances to centroids (dispersion)     | ❌ No                | Distances, centroids, model object |
 | `permutest()`  | Tests if group dispersions differ using permutations          | ✅ Yes               | F-value, permutation-based p-value |
 
-## Sorensen
+### Sorensen
 
 ```{r betadisper-sorensen}
 # Homogeneity of Disperson test with beta dispr
-# Sorensen Betadisper - Station 
-dispr_sorensen_station <- betadisper(scaled_sorensen_dist, metadata_df$station)
+# Sorensen Betadisper - Salinity Group (Categorical) 
+dispr_sorensen_salGroup <- betadisper(scaled_sorensen_dist, metadata_df$salinity_group)
 # permutest() performs a non-parametric permutation test, which is robust and valid for the kind of data used in beta diversity analysis (e.g., dissimilarity matrices).
-permutest(dispr_sorensen_station)
+permutest(dispr_sorensen_salGroup)
 
 # Sorensen Betadisper - Date  
 dispr_sorensen_date <- betadisper(scaled_sorensen_dist, metadata_df$date)
 permutest(dispr_sorensen_date)
 
-# Sorensen Betadisper - Salinity psu  
+# Sorensen Betadisper - Salinity PSU (Continuous)
 dispr_sorensen_salinity <- betadisper(scaled_sorensen_dist, metadata_df$salinity_psu)
 permutest(dispr_sorensen_salinity)
 ```
@@ -875,36 +873,48 @@ Interpreting `betadisper()/permutest()` results:
 
 **Sorensen:**
 
-- **Station** has a significant `betadisper()/permutest()` result. Therefore, we cannot conclude for certain that our PERMANOVA results are truly because of station. That said, we might expect that freshwater or saline system will have more/less dispersion for ecological reasons. Biology can also determine the dispersion. So, not all is lost! 
-- **Date** does not have a significant `betadisper()/permutest()` result. Therefore, the PERMANOVA results likely represent a true difference by date.  
-- **Salinity_psu** does not have a significant `betadisper()/permutest()` result and we can also trust that the PERMANOVA results are real. 
+- **Salinity Group** has a marginally significant `betadisper()`/`permutest()` result (F = 2.79, p = 0.05). Therefore, we cannot conclude with full confidence that the PERMANOVA results are driven purely by differences in community composition between salinity groups. Some of the signal may reflect differences in within-group dispersion rather than true centroid differences. 
+    - That said, this is right at the boundary of significance, and we might ecologically expect that freshwater or highly saline environments would naturally harbor more or less variable communities as we saw in the ordination plots above. Biology can also determine dispersion, so not all is lost! Though, this result warrants some caution in interpretation! 
+- **Date** does not have a significant `betadisper()/permutest()` result. Therefore, dispersion is homogeneous across dates and the PERMANOVA results likely represent a true difference in community composition through time.  
+- **Salinity_psu** does not have a significant `betadisper()/permutest()` result (F = 0.67, p = 0.879). Dispersion is very homogeneous across salinity values, and we can confidently trust that the PERMANOVA results reflect real differences in community composition along the salinity gradient rather than artifacts of unequal dispersion. 
 
 ## Bray-Curtis
 
 Now, let's test the same with Bray-Curtis!
 
 ```{r betadisper-bray}
-# Bray-Curtis Betadisper - Station 
-dispr_bray_station <- betadisper(scaled_bray_dist, metadata_df$station)
-permutest(dispr_bray_station)
+# Bray-Curtis Betadisper - Salinity Group (Categorical)  
+dispr_bray_salGroup <- betadisper(scaled_bray_dist, metadata_df$salinity_group)
+permutest(dispr_bray_salGroup)
 
 # Bray-Curtis Betadisper - Date  
 dispr_bray_date <- betadisper(scaled_bray_dist, metadata_df$date)
 permutest(dispr_bray_date)
 
-# Bray-Curtis Betadisper - Salinity psu  
+# Bray-Curtis Betadisper - Salinity PSU (Continuous)
 dispr_bray_salinity <- betadisper(scaled_bray_dist, metadata_df$salinity_psu)
 permutest(dispr_bray_salinity)
 ```
 
-The **Bray-Curtis** results are actually in complete agreement with the Sorensen results. So, we can draw the same conclusions that: 
 
-1. Station likely has some biological difference in the variance, which means that we need to be careful in our PERMANOVA interpretations. 
-2. salinity_psu and date both have homogeneity of variances, meaning that we can put more trust into the differences in the centroids that we discovered in the PERMANOVA results! 
+
+**Bray-Curtis:**
+
+- **Salinity Group** has a marginally significant `betadisper()`/`permutest()` result (F = 2.72, p = 0.046), which is nearly identical to the Sorensen result (F = 2.79, p = 0.05). Therefore, as with Sorensen, we cannot conclude with full confidence that the PERMANOVA results are driven purely by differences in community composition between salinity groups. Instead, some of the signal may reflect differences in within-group dispersion. Again, this is right at the boundary of significance, and ecological differences in variability across salinity regimes are biologically plausible, so some caution is warranted but not despair!
+- **Date** does not have a significant `betadisper()`/`permutest()` result (F = 0.63, p = 0.565). Dispersion is homogeneous across dates and the PERMANOVA results likely represent a true difference in community composition through time -- consistent with the Sorensen result.
+- **Salinity in PSU** does not have a significant `betadisper()`/`permutest()` result (F = 0.59, p = 0.947). Dispersion is very homogeneous across salinity values, and we can confidently trust that the PERMANOVA results reflect real differences in community composition along the salinity gradient -- again fully consistent with Sorensen.
+
+### Comparing Sorensen & Bray Curtis Results 
+
+**The Bray-Curtis results are in complete agreement with the Sorensen results across all three variables, which strengthens our overall conclusions:**
+
+1. **Salinity group** shows marginally significant dispersion in both metrics, meaning we need to be careful in our PERMANOVA interpretations for this categorical variable. However, the ecological plausibility of differing variability across salinity regimes, combined with the robustness of the result across both metrics, gives us reason to be cautiously optimistic rather than dismissive of the PERMANOVA findings.
+2. **Salinity in PSU and date** both show homogeneity of variances in both metrics, meaning we can place greater trust in the centroid differences discovered in the PERMANOVA results for these variables. The consistency across Sorensen and Bray-Curtis makes this conclusion especially robust!
+
 
 # Interpreting PERMANOVA with Betadisper
 
-### 📦 So how do you interpret both being significant?
+## What if PERMANOVA and Betadisper tests are both significant?
 
 If **PERMANOVA is significant** _and_ **betadisper is also significant**, it suggests that:
 
@@ -920,14 +930,14 @@ This raises the possibility that the PERMANOVA significance is at least partly d
 
 **Next steps:**
 
-- Use ordination plots to visually assess whether centroids are distinct or just differently dispersed (*We are about to do this!*)
-- Plot distances to group centroids
-- Consider running PERMANOVA on a subset with equal dispersions
-- Reflect on ecological plausibility — are the dispersion differences biologically meaningful? Sometimes real biological processes cause both composition shifts and dispersion changes (e.g., disturbance, environmental heterogeneity)! So, don't lose your heart about your data yet! :) 
+- Reflect on the ordination plots above to visually assess whether centroids are distinct or just differently dispersed.
+- Plot distances to group centroids.
+- Consider running PERMANOVA on a subset with equal dispersions.
+- Reflect on ecological plausibility: Are the dispersion differences biologically meaningful? Sometimes real biological processes cause both composition shifts and dispersion changes (e.g., disturbance, environmental heterogeneity)! So, don't lose your heart about your data yet! :) 
 
 > Even with unequal dispersion, true ecological differences can still exist — the key is to **interpret with care** and use supporting evidence.
 
-If this happens, the results could be written something like: "*PERMANOVA indicated significant differences in microbial community composition across treatments (p < 0.001), though betadisper was also significant (p = 0.03), suggesting differences in within-group dispersion. Ordination plots showed distinct clustering of treatment centroids, supporting genuine compositional differences, though interpretations must consider potential heterogeneity in dispersion.*"
+If this happens, the results could be written something like: "*Significant differences in microbial community composition were detected across salinity groups (PERMANOVA: p < 0.001), though within-group dispersion also differed marginally among groups (permutest: p = 0.046-0.05), meaning some salinity environments may harbor inherently more variable communities than others. The consistency of this result across both presence/absence and abundance-based metrics, combined with distinct centroid clustering in ordination space, supports salinity as a genuine driver of community structure. However, interpretations should account for potential heterogeneity in within-group variability.*"
 
 
 <span style="color: red;">INTERPRETATION #9: Using the above example to guide you, run the appropriate betadisper() and permutest() for your scientific question and interpret the results. What biological conclusion can you draw from your dispersion analysis?</span>
