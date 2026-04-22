@@ -811,7 +811,7 @@ Salinity's effect is robust across both distance metrics (presence/absence and a
 
 *HOWEVER, there are caveats to these conclusions... let's take a look at variance!*
 
-<span style="color: red;">INTERPRETATION #8: Using the above example to guide you, run the appropriate PERMANOVA for your scientific question and interpret the results. Make sure to run your model in at least two different term orders and comment on whether the R-squared value changes between models. If so, what does this tell you about whether your variables are independent of one another or co-varying? What biological conclusion can you draw from your PERMANOVA results, and do you accept or reject your hypothesis?</span>
+<span style="color: red;">INTERPRETATION #8: Using the above example to guide you, please run the appropriate PERMANOVA for your scientific question and interpret the results. If you have more than one variable of interest, please make sure to run your model in at least two different term orders and comment on whether the R-squared value changes between models. If so, what does this tell you about whether your variables are independent of one another or co-varying? What biological conclusion can you draw from your PERMANOVA results, and do you accept or reject your hypothesis?</span>
 
 
 # 6b. Betadisper: Testing Variances/Dispersions
