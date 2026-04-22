@@ -249,6 +249,15 @@ scaledSeq_histogram + scaledSeq_vs_numASV_plot +
 
 <span style="color: red;">INTERPRETATION #3:  Evaluate the scaled read count plots above. Are the total number of sequences across all of your samples in the same general range? What is the minimum and maximum (i.e., the range) of the sequencing depth? What does this tell you about the relationship between sequencing depth and the observed number of ASVs?</span>
 
+
+## Save Scaled Reads
+
+Please do not forget to save your phyloseq object here for the compositional analysis in our final step! 
+
+```{r save-scaled-reads}
+save(scaled_physeq, file = "data/Lecture/05_Ordination_Lecture/scaled_physeq.RData")
+```
+
 # Beta Diversity: Dissimilarity Metrics in Microbial Ecology
 
 ## Similarity versus Dissimilarity
