@@ -14,4 +14,58 @@ pacman::p_load(tidyverse, phyloseq, patchwork,
 
 # Load colors and shapes 
 source("code/colors_and_shapes.R")
+
+# Load in the scaled phyloseq object
+load("data/05_Ordination/scaled_physeq.RData")
+
+# Look at the object 
+scaled_physeq # scaled to 2,107 reads 
+range(sample_sums(scaled_physeq))
+
+# What is the range? 
+max(sample_sums(scaled_physeq)) - min(sample_sums(scaled_physeq))
+```
+
+# Taxonomic Analysis
+
+## Phylum Level 
+
+```{r plot-phyla}
+phylum_df <- 
+  scaled_physeq %>%
+  # Agglomerate all ASV/genus/family/order/class within a single phylum
+  tax_glom(taxrank = "Phylum") %>%
+  # Calculate the relative abundance
+  transform_sample_counts(function(x) {x/sum(x)}) %>%
+  # Create a dataframe from a phyloseq object
+  psmelt()
+
+# Take a look at the phylum_df
+glimpse(phylum_df) 
+
+# Top 10 most abundance phyla 
+top10_phyla <- 
+  phylum_df %>%
+  group_by(Phylum) %>%
+  summarize(mean_PercAbund = mean(Abundance)) %>%
+  arrange(-mean_PercAbund) %>%
+  head(n = 10) %>%
+  pull(Phylum)
+
+# Who are the top 10? 
+top10_phyla
+
+
+# create the plot 
+phylum_df %>%
+  dplyr::filter(Phylum %in% top10_phyla) %>%
+  ggplot(aes(x = salinity_group, y = Abundance, 
+             fill = Phylum, color = Phylum)) + 
+  facet_wrap(Phylum~., scales = "free", nrow = 2) + 
+  geom_boxplot(outlier.shape = NA, alpha = 0.5) + 
+  geom_jitter() + 
+  theme_bw() + 
+  scale_fill_manual(values = phylum_colors) + 
+  scale_color_manual(values = phylum_colors) + 
+  theme(legend.position = "none")
 ```
