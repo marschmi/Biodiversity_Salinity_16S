@@ -11,7 +11,7 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE, 
                       fig.align = "center",
                       # Make sure to create the folder
-                      fig.path = "../figures/01_QualityTrimming")
+                      fig.path = "../figures/01_QualityTrimming/")
 ```
 
 
