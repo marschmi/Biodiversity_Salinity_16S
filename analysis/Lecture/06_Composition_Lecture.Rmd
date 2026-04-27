@@ -84,7 +84,10 @@ range(sample_sums(scaled_physeq))
 
 In this analysis, we will drill down from phylum to ASV level analyses, which will enable increasingly detailed insights into microbial diversity and potential ecological roles. However, it is also important for us to remember that deeper levels also come with increased noise and data sparsity, especially for rare groups. 
 
-## A. Phylum 
+# A. Abundant Groups: Top 10 Phyla & ASVs 
+
+
+## A1. Top 10 Phyla
 
 Taxonomic analysis often begins at broader levels (*e.g.,* Phylum) to visualize overarching trends before zooming in on finer-scale patterns. This step allows us to identify which microbial groups dominate across samples and which may respond to environmental gradients like salinity.
 
@@ -125,12 +128,12 @@ top10_phyla
 
 <span style="color: red;">INTERPRETATION #2: Which phyla in your dataset have the highest relative abundances? What are their abundances? We will focus on these phyla for plotting below. :)</span>
 
-## Faceted Phylum Plot 
+**Faceted Phylum Plot**
 
 To help compare the phylum abundance between sample types, we can facet by phylum to better see how the changes occur across the stations, which is masked in the stacked bar plot. It's a little better than the stacked bar plot, however, we can do even better! 
 
-```{r plot-phylum-station, fig.width=12, fig.height=6}
-### Or combined together: 
+```{r plot-Top10-Phyla-salGroup, fig.width=12, fig.height=6}
+### Plot the Top 10 Phyla
 phylum_df %>%
   dplyr::filter(Phylum %in% top10_phyla) %>%
   ggplot(aes(x = salinity_group, y = Abundance, fill = Phylum, color = Phylum)) + 
@@ -143,7 +146,8 @@ phylum_df %>%
   scale_color_manual(values = phylum_colors) + 
   theme_bw() + 
   theme(legend.position = "none",
-        axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1))
+        axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1),
+        axis.title.x = element_blank())
 ```
 
 
@@ -169,7 +173,69 @@ After initial exploration, we focus on specific phyla that appear to vary across
 
 <span style="color: red;">INTERPRETATION #3: Make the above dotplot and boxplot for your sample types and your most abundant phyla. What *initial* conclusions can you draw regarding the sampled microbial communities as it relates to your scientific question?</span>
 
-### A1. Actinomycetota 
+
+## A2: Top 10 ASVs
+
+Now, let's take a look at the ASVs. This is where the *real* ecology/biology happens! This is because the ASV-level plots will provide us with a more detailed view of **which specific taxa (ASVs) are driving the overall trends seen at the higher taxonomic levels (e.g. phylum)** in relation to salinity gradients and station differences.
+
+Before we calculate the ASV-level abundances, let's take a second to think about *who* we'd like to consider. There's a lot of ASVs! In fact, there are `r ntaxa(scaled_physeq)`! It is difficult analyze all of them! Therefore, we will remove ASVs that have an overall count across the entire dataset of 211 or 1% of a scaled sample to 2,107 This is a little arbitrary and therefore, you may choose a different threshold for your dataset. The goal here is to **dramatically decreases the number of ASVs in the dataset** to help make the ASV-level data analysis much easier. 
+
+Of course, if we had more time in class, we could run differential abundance and this would also help us to identify and statistically test which ASVs are important and also help us narrow on specific ASVs. 
+
+The goal with this lesson is to do some data exploration and then also test ASVs that are relevant for our specific study. Let's go! 
+
+```{r calc-ASVs, fig.width=12, fig.height=4}
+# Calculate the Family relative abundance 
+# Note: The read depth MUST be normalized in some way: scale_reads
+ASV_df <- 
+  scaled_physeq %>%
+  # Prune out ASVs that have fewer than ~1%! 
+  ## LOOK AT HOW MANY ARE REMOVED! We scaled to 2,107 reads! 
+  prune_taxa(taxa_sums(.) >= 211, .) %>%
+  # agglomerate at the phylum level 
+  tax_glom(taxrank = "ASV") %>% 
+  # Transform counts to relative abundance 
+  transform_sample_counts(function (x) {x/sum(x)}) %>%
+  # Melt to a long format 
+  psmelt() 
+
+
+# Make a list of phyla the top 10 ASVs in the Dataset
+top15_ASVs <- 
+  ASV_df %>%
+  group_by(ASV) %>%
+  summarize(mean_PercAbund = mean(Abundance)) %>%
+  arrange(-mean_PercAbund) %>%
+  head(n = 15) %>%
+  pull(ASV)
+
+# show it 
+top15_ASVs
+```
+
+```{r plot-Top10-ASVs-salGroup, fig.width=12, fig.height=9}
+### Plot the Top 10 ASVs
+ASV_df %>%
+  dplyr::filter(ASV %in% top15_ASVs) %>%
+  ggplot(aes(x = salinity_group, y = Abundance, fill = Phylum, color = Phylum)) + 
+  facet_wrap(ASV~Genus, scales = "free", nrow = 3) + 
+  # add the stacked bar 
+  geom_jitter() +
+  geom_boxplot(outlier.shape = NA, alpha = 0.5) + 
+  # change the colors to be our selected colors 
+  scale_fill_manual(values = phylum_colors) + 
+  scale_color_manual(values = phylum_colors) + 
+  theme_bw() + 
+  theme(legend.position = "bottom",
+        axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1),
+        axis.title.x = element_blank())
+```
+
+
+
+# B. Within Phylum-Level
+
+## B1. Actinomycetota 
 
 ```{r phylum-actinos, fig.width=7, fig.height=3.5}
 # Narrow in on a specific group
@@ -217,7 +283,7 @@ B. Abundance shows a strong negative relationship with salinity, consistent with
 
 Actinomycetes are Gram-positive bacteria known for decomposing complex organic matter, especially in soils and freshwater systems. Their decline with increasing salinity suggests sensitivity to osmotic stress and highlights their role in freshwater nutrient cycling and carbon turnover.
 
-### A2. Cyanobacteriota 
+## B2. Cyanobacteriota 
 
 ```{r phylum-cyanos, fig.width=7, fig.height=3.5}
 # Narrow in on a specific group
@@ -269,7 +335,7 @@ B. When plotted against salinity, Cyanobacteriota abundance follows a unimodal (
 
 Cyanobacteria are globally important primary producers, contributing significantly to oxygen production and carbon cycling. In estuaries, they often dominate in brackish waters and include both free-living and bloom-forming taxa. Their response to salinity helps indicate shifts in primary production potential and trophic dynamics.
 
-### A3. Verrucomicrobiota
+## B3. Verrucomicrobiota
 
 ```{r phylum-verrucos, fig.width=7, fig.height=3.5}
 # Narrow in on a specific group
@@ -320,7 +386,7 @@ B. There is a clear negative correlation between Verrucomicrobiota abundance and
 
 This diverse phylum is often associated with polysaccharide degradation and has been found in soils, freshwater, and marine systems. In estuarine environments, their presence in low salinity zones suggests a role in terrestrial or freshwater organic matter processing.
 
-### A4. Bacteroidota
+## B4. Bacteroidota
 
 ```{r phylum-bacteroidota, fig.width=7, fig.height=3.5}
 # Narrow in on a specific group
@@ -371,7 +437,7 @@ B. Abundance shows a strong positive correlation with salinity, indicating this 
 
 Members of Bacteroidota are prominent degraders of high-molecular-weight organic matter such as proteins and polysaccharides. Their increasing abundance with salinity implies they may be key players in coastal and marine carbon cycling, especially in environments rich in organic particles.
 
-### Phylum Summary 
+## Phylum Summary 
 
 | Phylum             | Salinity Trend         | Peak/Preference              | Interpretation                                                                 |
 |--------------------|------------------------|------------------------------|---------------------------------------------------------------------------------|
@@ -382,7 +448,7 @@ Members of Bacteroidota are prominent degraders of high-molecular-weight organic
 
 <span style="color: red;">INTERPRETATION #4: Based on these phylum-level analyses, were there any phyla that you were able to identify to focus on moving forward for deeper taxonomic analyses? Why?</span>
 
-## B. Genus
+# C. Genus-Level
 
 Let's first calculate the genus data frame. 
 
@@ -400,7 +466,7 @@ genus_df <-
 ```
 
 
-### B1. Actinomycetota Genera 
+## C1. Actinomycetota Genera 
 
 ```{r actino-genus, fig.width=6, fig.height=6}
 # Actinobacteriota
@@ -452,7 +518,7 @@ This figure shows the relative abundance of two dominant Actinomycetota generaâ€
 
 These patterns reinforce the role of salinity as a key environmental filter in structuring Actinomycetota populations and suggest functional or physiological constraints that limit these genera to distinct salinity niches.
 
-### B2. Cyanobacteriota Genera 
+## C2. Cyanobacteriota Genera 
 
 Let's take a look at two important and very abundant Cyano Genera: 
 
@@ -521,33 +587,9 @@ Together, these patterns illustrate niche partitioning within Cyanobacteriota al
 
 <span style="color: red;">INTERPRETATION #5: Please make some plots of mid-level taxonomic ranks (e.g. Genus, Family, Order) as it relates to your scientific question. Were there any changes in the mid-level taxonomic trends compared to the phylum-level results? What does that tell you about that taxonomic group?</span>
 
-## C. ASV level
+# D. ASV-Level
 
-Now, let's take a look at the ASVs. This is where the *real* ecology/biology happens! This is because the ASV-level plots will provide us with a more detailed view of **which specific taxa (ASVs) are driving the overall trends seen at the higher taxonomic levels (e.g. phylum)** in relation to salinity gradients and station differences.
-
-Before we calculate the ASV-level abundances, let's take a second to think about *who* we'd like to consider. There's a lot of ASVs! In fact, there are `r ntaxa(scaled_physeq)`! It is difficult analyze all of them! Therefore, we will remove ASVs that have an overall count across the entire dataset of 211 or 1% of a scaled sample to 2,107 This is a little arbitrary and therefore, you may choose a different threshold for your dataset. The goal here is to **dramatically decreases the number of ASVs in the dataset** to help make the ASV-level data analysis much easier. 
-
-Of course, if we had more time in class, we could run differential abundance and this would also help us to identify and statistically test which ASVs are important and also help us narrow on specific ASVs. 
-
-The goal with this lesson is to do some data exploration and then also test ASVs that are relevant for our specific study. Let's go! 
-
-```{r ASV-plots, fig.width=12, fig.height=4}
-# Calculate the Family relative abundance 
-# Note: The read depth MUST be normalized in some way: scale_reads
-ASV_df <- 
-  scaled_physeq %>%
-  # Prune out ASVs that have fewer than ~1%! 
-  ## LOOK AT HOW MANY ARE REMOVED! We scaled to 2,107 reads! 
-  prune_taxa(taxa_sums(.) >= 211, .) %>%
-  # agglomerate at the phylum level 
-  tax_glom(taxrank = "ASV") %>% 
-  # Transform counts to relative abundance 
-  transform_sample_counts(function (x) {x/sum(x)}) %>%
-  # Melt to a long format 
-  psmelt() 
-```
-
-### C1. Actinomycetota ASVs 
+## D1. Actinomycetota ASVs 
 
 ```{r actino-asvs, fig.width=10, fig.height=8}
 # Calculate top couple of ASVs 
@@ -618,7 +660,7 @@ B. **Relationship to Salinity:**
 - This contrasts with Cyanobacteriota (below), where some ASVs increase in high salinity (e.g., Synechococcus), suggesting different ecological tolerances and niche strategies.
 
 
-### C2. Cyanobacterial ASVs
+## D2. Cyanobacterial ASVs
 
 Let's narrow in on more abundant ASVs by removing any ASVs that are less than 0.5% abundance. Otherwise there were many ASVs in this group!
 
@@ -686,7 +728,7 @@ B. **Relationship to Salinity**: Salinity shapes niche partitioning among Cyanob
 
 <span style="color: red;">INTERPRETATION #8: Now, do a quick literature or google search and look back in the paper that you may be replicating (if applicable). Does your ASV-level changes represent something that is currently known? Or is this a novel result? What did you learn about this ASV or a group of ASVs in your dataset?</span>
 
-### C3. Verrucomicrobiota 
+## D3. Verrucomicrobiota 
 
 ```{r verruco-asvs, fig.width=6, fig.height=6}
 # Calculate top couple of ASVs 
@@ -737,7 +779,7 @@ verruco_asv_salGroup / verruco_asv_salinity +
 ```
 
 
-### C4. Bacteroidota 
+## D4. Bacteroidota 
 
 ```{r bacter-asvs, fig.width=6, fig.height=10}
 # Calculate top couple of ASVs 
